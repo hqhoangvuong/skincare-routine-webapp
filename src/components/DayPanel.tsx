@@ -81,7 +81,7 @@ export default function DayPanel({ day, category }: { day: DayData; category: Ca
     );
   }
 
-  const copy = PANEL_COPY[category as "face" | "body"];
+  const copy = category === "body" ? PANEL_COPY.body : PANEL_COPY.face;
   return (
     <div className="panel active">
       <div className="badge-row">

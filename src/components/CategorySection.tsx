@@ -10,10 +10,10 @@ const THEME_CLASS: Record<Category, string> = {
   body: "theme-almond",
 };
 
-function Petals() {
+function Petals({ opacity = 0.35 }: { opacity?: number }) {
   return (
     <svg className="petals" width="140" height="140" viewBox="0 0 140 140" fill="none">
-      <g fill="currentColor" opacity="0.35">
+      <g fill="currentColor" opacity={opacity}>
         <ellipse cx="70" cy="40" rx="26" ry="16" transform="rotate(20 70 40)" />
         <ellipse cx="95" cy="60" rx="26" ry="16" transform="rotate(80 95 60)" />
         <ellipse cx="60" cy="70" rx="26" ry="16" transform="rotate(140 60 70)" />
@@ -56,7 +56,7 @@ function FaceHero() {
 function HairHero() {
   return (
     <header className="hero">
-      <Petals />
+      <Petals opacity={0.3} />
       <p className="eyebrow">Chăm sóc tóc &amp; da đầu</p>
       <h1 className="cat-title">
         Tóc chắc khoẻ,
@@ -85,7 +85,7 @@ function HairHero() {
 function BodyHero() {
   return (
     <header className="hero">
-      <Petals />
+      <Petals opacity={0.3} />
       <p className="eyebrow">Chăm sóc da cơ thể</p>
       <h1 className="cat-title">
         Mềm mịn mỗi ngày,
