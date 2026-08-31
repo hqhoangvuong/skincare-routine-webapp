@@ -381,15 +381,32 @@ export type SyncStatus = "synced" | "offline" | "unauthorized";
  * validate identically — two separate implementations would be free to drift,
  * and the failure mode is one side accepting a blob the other rejects.
  */
+export const CATEGORIES = ["face", "hair", "body"] as const;
+
 export function isAppState(value: unknown): value is AppState {
   if (typeof value !== "object" || value === null) return false;
   const v = value as Record<string, unknown>;
+  if (
+    v.version !== 1 ||
+    typeof v.updatedAt !== "string" ||
+    typeof v.programStartDate !== "string" ||
+    typeof v.ui !== "object" ||
+    v.ui === null ||
+    Array.isArray(v.ui)
+  ) {
+    return false;
+  }
+  // The nested ui shape is validated too, not just its presence. On the
+  // Worker's PUT path this guard is what stands between a malformed body and
+  // a blob persisted into KV that every subsequent load would then serve.
+  const ui = v.ui as Record<string, unknown>;
+  const days = ui.activeDayByCategory;
+  if (typeof days !== "object" || days === null || Array.isArray(days)) return false;
+  const byCategory = days as Record<string, unknown>;
   return (
-    v.version === 1 &&
-    typeof v.updatedAt === "string" &&
-    typeof v.programStartDate === "string" &&
-    typeof v.ui === "object" &&
-    v.ui !== null
+    typeof ui.activeCategory === "string" &&
+    CATEGORIES.some((c) => c === ui.activeCategory) &&
+    CATEGORIES.every((c) => typeof byCategory[c] === "number")
   );
 }
 ```
@@ -1913,7 +1930,7 @@ git commit -m "feat: add sync status notice and settings panel with program star
 
 **Interfaces:**
 - Consumes: `makeDefaultState` from `src/shared/defaults.ts`; `AppState` from `src/shared/types.ts`
-- Produces: `handleRequest(request: Request, env: Env): Promise<Response>` and `type Env = { STATE: KVNamespace; WRITE_TOKEN: string; ALLOWED_ORIGIN: string }` from `worker/index.ts`; `STATE_KEY = "state:default"`
+- Produces: `handleRequest(request: Request, env: Env): Promise<Response>` and `interface StateStore { get(key: string): Promise<string | null>; put(key: string, value: string): Promise<void> }` and `type Env = { STATE: StateStore; WRITE_TOKEN: string; ALLOWED_ORIGIN: string }` from `worker/index.ts`; `STATE_KEY = "state:default"`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1935,14 +1952,15 @@ function fakeKv() {
   };
 }
 
-let env: Env & { STATE: ReturnType<typeof fakeKv> };
+// No cast needed: fakeKv structurally satisfies StateStore.
+let env: { STATE: ReturnType<typeof fakeKv>; WRITE_TOKEN: string; ALLOWED_ORIGIN: string };
 
 beforeEach(() => {
   env = {
     STATE: fakeKv(),
     WRITE_TOKEN: "secret",
     ALLOWED_ORIGIN: "https://example.github.io",
-  } as unknown as Env & { STATE: ReturnType<typeof fakeKv> };
+  };
 });
 
 describe("GET /state", () => {
@@ -1983,7 +2001,9 @@ describe("PUT /state", () => {
     const state = { ...makeDefaultState(), programStartDate: "2026-02-02" };
     const response = await handleRequest(putRequest(state, "secret"), env);
     expect(response.status).toBe(204);
-    expect(JSON.parse(env.STATE.store.get(STATE_KEY)!).programStartDate).toBe("2026-02-02");
+    const stored = env.STATE.store.get(STATE_KEY);
+    expect(stored).toBeDefined();
+    expect(JSON.parse(String(stored)).programStartDate).toBe("2026-02-02");
   });
 
   it("rejects a missing token", async () => {
@@ -2049,8 +2069,18 @@ import { isAppState } from "../src/shared/types";
 
 export const STATE_KEY = "state:default";
 
+/**
+ * Only what the Worker actually uses from KV. A real KVNamespace satisfies
+ * this structurally, and so does a plain fake in tests — so the test setup
+ * needs no cast. Depending on the full KVNamespace surface would force one.
+ */
+export interface StateStore {
+  get(key: string): Promise<string | null>;
+  put(key: string, value: string): Promise<void>;
+}
+
 export type Env = {
-  STATE: KVNamespace;
+  STATE: StateStore;
   WRITE_TOKEN: string;
   ALLOWED_ORIGIN: string;
 };
