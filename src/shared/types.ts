@@ -43,3 +43,21 @@ export type AppState = {
 };
 
 export type SyncStatus = "synced" | "offline" | "unauthorized";
+
+/**
+ * Validates an untrusted blob parsed from JSON. Lives here, beside the type it
+ * guards, so the frontend's localStorage mirror and the Worker's PUT handler
+ * validate identically — two separate implementations would be free to drift,
+ * and the failure mode is one side accepting a blob the other rejects.
+ */
+export function isAppState(value: unknown): value is AppState {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    v.version === 1 &&
+    typeof v.updatedAt === "string" &&
+    typeof v.programStartDate === "string" &&
+    typeof v.ui === "object" &&
+    v.ui !== null
+  );
+}

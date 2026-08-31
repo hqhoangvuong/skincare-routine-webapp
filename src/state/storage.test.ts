@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MIRROR_KEY, readMirror, reconcile, writeMirror } from "./storage";
 import { makeDefaultState } from "../shared/defaults";
 import type { AppState } from "../shared/types";
@@ -25,6 +25,25 @@ describe("mirror", () => {
   it("returns null rather than throwing on corrupt JSON", () => {
     localStorage.setItem(MIRROR_KEY, "{not json");
     expect(readMirror()).toBeNull();
+  });
+
+  it("returns null for a stored blob with the wrong version", () => {
+    const state = stateAt("2026-08-30T10:00:00.000Z");
+    localStorage.setItem(MIRROR_KEY, JSON.stringify({ ...state, version: 2 }));
+    expect(readMirror()).toBeNull();
+  });
+
+  it("returns null for a structurally incomplete blob", () => {
+    localStorage.setItem(MIRROR_KEY, JSON.stringify({ version: 1 }));
+    expect(readMirror()).toBeNull();
+  });
+
+  it("does not throw when localStorage rejects the write", () => {
+    const spy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("quota exceeded");
+    });
+    expect(() => writeMirror(stateAt("2026-08-30T10:00:00.000Z"))).not.toThrow();
+    spy.mockRestore();
   });
 });
 
