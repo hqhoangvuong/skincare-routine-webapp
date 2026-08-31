@@ -24,3 +24,8 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Explicit rather than relying on the action's default. This workflow
+          # cannot be executed before its first real run, so an unstated default
+          # is an unknown that would surface as a confusing first-deploy
+          # failure. One line removes it.
+          command: deploy
