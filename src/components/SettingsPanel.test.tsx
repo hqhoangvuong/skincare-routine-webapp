@@ -24,7 +24,9 @@ describe("SettingsPanel", () => {
     // unreliable in jsdom because it has no date-picker behaviour.
     fireEvent.change(input, { target: { value: "2026-07-01" } });
     await waitFor(() => expect(input).toHaveValue("2026-07-01"));
-    expect(JSON.parse(localStorage.getItem("skincare.state.v1")!).programStartDate).toBe("2026-07-01");
+    const raw = localStorage.getItem("skincare.state.v1");
+    expect(raw).not.toBeNull();
+    expect(JSON.parse(String(raw)).programStartDate).toBe("2026-07-01");
   });
 
   it("renders nothing when closed", () => {
