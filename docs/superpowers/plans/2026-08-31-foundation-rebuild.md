@@ -1925,7 +1925,7 @@ git commit -m "feat: add sync status notice and settings panel with program star
 ### Task 10: The Cloudflare Worker
 
 **Files:**
-- Create: `worker/index.ts`, `worker/handlers.test.ts`, `wrangler.toml`
+- Create: `worker/handlers.ts`, `worker/index.ts`, `worker/handlers.test.ts`, `wrangler.toml`
 - Modify: `vite.config.ts` (add `worker/` to the Vitest include path)
 
 **Interfaces:**
@@ -1938,7 +1938,7 @@ git commit -m "feat: add sync status notice and settings panel with program star
 
 ```ts
 import { describe, expect, it, beforeEach } from "vitest";
-import { handleRequest, STATE_KEY, type Env } from "./index";
+import { handleRequest, STATE_KEY, type Env } from "./handlers";
 import { makeDefaultState } from "../src/shared/defaults";
 
 function fakeKv() {
@@ -2061,7 +2061,16 @@ Expected: FAIL — cannot resolve `./index`.
 
 - [ ] **Step 4: Write the Worker**
 
-`worker/index.ts`:
+**The entrypoint must be thin.** In the Workers modules format, every named
+export of the entry module is interpreted by the runtime as an additional
+handler or a Durable Object class binding. Exporting a plain constant like
+`STATE_KEY` from it is therefore invalid, and the runtime rejects the module
+with `Incorrect type for map entry 'STATE_KEY': ... not of type 'function or
+ExportedHandler'`. All logic and its named exports live in
+`worker/handlers.ts`; `worker/index.ts` contains nothing but the default
+export.
+
+`worker/handlers.ts` (everything below except the default export):
 
 ```ts
 import { makeDefaultState } from "../src/shared/defaults";
@@ -2145,6 +2154,13 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
 
   return json({ error: "not found" }, 404, env);
 }
+
+```
+
+`worker/index.ts` — the entire file, and deliberately nothing more:
+
+```ts
+import { handleRequest } from "./handlers";
 
 export default {
   fetch: handleRequest,
