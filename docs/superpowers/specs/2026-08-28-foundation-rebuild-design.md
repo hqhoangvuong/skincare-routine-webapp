@@ -79,6 +79,7 @@ Two deployable pieces:
 ```ts
 type AppState = {
   version: 1;
+  updatedAt: string; // ISO timestamp of the last local mutation
   programStartDate: string; // ISO date, e.g. "2026-08-24"
   ui: {
     activeCategory: "face" | "hair" | "body";
@@ -86,6 +87,30 @@ type AppState = {
   };
 };
 ```
+
+**Amendment 2026-08-31 — `updatedAt`.** Added after review. Every local
+mutation stamps `updatedAt` with the current time. It exists so the mount-time
+reconciliation below can tell which of the two copies (Worker vs. the
+`localStorage` mirror) is actually newer, rather than assuming the Worker's
+copy always is. See "Persistence" below for why that assumption was unsafe.
+
+**Amendment 2026-08-31 — `programStartDate` is durable and user-editable.**
+Added after review. Two changes:
+
+1. **The first-run default is written back to KV, not just returned.** When
+   `GET /state` finds an empty KV, the Worker seeds the default blob into KV
+   *before* returning it. Previously the default was generated per-request
+   and never persisted, so — because the frontend only writes on change —
+   every load of an untouched app would mint a fresh `programStartDate` of
+   "today" and the computed week number would be pinned at 1 forever.
+2. **A minimal settings surface lands in this sub-project**, not sub-project
+   5, containing exactly one control: a date input bound to
+   `programStartDate`. Without it the value is whatever day the rebuilt app
+   was first opened, which is not when the routine actually started, and
+   there is no way to correct it. Sub-project 2's week-variant resolution and
+   sub-project 5's notification copy both read this field, so it has to be
+   correctable before either of them ships. Sub-project 5 extends this same
+   settings area rather than introducing one.
 
 Deliberately minimal. The `version` field exists from day one so future
 additions (sub-project 2 adds a `completedSteps` map, sub-project 3 adds an
@@ -124,19 +149,31 @@ Direct ports of the current markup/behavior into React, same visual output:
 
 Owns the sync between `AppStateProvider` and the Worker:
 
-- **On mount**: `GET /state` from the Worker. On success, populate Context.
-  On failure (offline, Worker down, timeout), fall back to the last-known
-  snapshot cached in `localStorage`, if any; otherwise use a default empty
-  state.
-- **On change**: debounce ~500ms, then `PUT /state` with the full current
-  blob, and mirror the same blob into `localStorage` as the fallback cache
-  regardless of whether the `PUT` succeeded.
-- **No sync queue for v1**: if a `PUT` fails, it's simply superseded by the
-  next change (the localStorage mirror always reflects the latest local
-  state, and the next successful `PUT` — triggered by any subsequent change,
-  or the next app load's mount cycle — carries it to the Worker). This is
-  intentionally simple; a real offline write queue is not justified for a
+- **On mount**: `GET /state` from the Worker *and* read the `localStorage`
+  mirror, then take whichever has the greater `updatedAt` (see Amendment
+  below). If the local copy wins, immediately `PUT` it so the Worker catches
+  up. On `GET` failure (offline, Worker down, timeout), use the mirror if
+  present; otherwise use a default state.
+- **On change**: stamp `updatedAt`, debounce ~500ms, then `PUT /state` with
+  the full current blob, and mirror the same blob into `localStorage` as the
+  fallback cache regardless of whether the `PUT` succeeded.
+- **No sync queue for v1**: if a `PUT` fails, it's superseded either by the
+  next change or by the next mount's reconciliation (above), which re-pushes
+  the newer local copy. A real offline write queue is not justified for a
   single-user app that's opened at least daily.
+
+**Amendment 2026-08-31 — mount-time reconciliation.** Added after review.
+The original design read the Worker on mount and consulted `localStorage`
+*only* when that read failed, which lost data on a specific and not-unlikely
+path: the last write of a session fails (the app is closed right after the
+final change, so no subsequent change supersedes it) → the newer state
+survives only in the `localStorage` mirror → the next mount's `GET` succeeds,
+returns the older blob, and overwrites the mirror. The newer state is then
+gone with no error ever surfaced. Comparing `updatedAt` and re-pushing a
+newer local copy closes that path, and also covers Cloudflare KV's eventual
+consistency (a read shortly after a write may serve a stale value for up to
+~60s; without the comparison that stale value would become the base for the
+next write).
 
 ### Error handling
 
@@ -144,9 +181,10 @@ Owns the sync between `AppStateProvider` and the Worker:
   small, non-blocking "offline — showing last saved state" notice.
 - **Worker unreachable on write**: state still updates locally and in
   `localStorage`; same non-blocking notice; no retry loop (see above).
-- **First run ever (empty KV)**: Worker returns a default `AppState` with
-  today's date as `programStartDate` and face/day-0 as the active
-  selection.
+- **First run ever (empty KV)**: Worker seeds KV with a default `AppState`
+  (today's date in `Asia/Ho_Chi_Minh` as `programStartDate`, face/day-0 as
+  the active selection) and returns it. The seed is written, not just
+  returned — see the `programStartDate` amendment above.
 - **Missing/invalid write token**: Worker returns 401 on `PUT`; frontend
   treats this the same as "unreachable" but with a distinct notice
   ("sync disabled — check setup") since this indicates real misconfiguration
