@@ -1,14 +1,20 @@
+import { useState } from "react";
 import CategorySwitcher from "./components/CategorySwitcher";
 import CategorySection from "./components/CategorySection";
+import SettingsPanel from "./components/SettingsPanel";
+import SyncNotice from "./components/SyncNotice";
 import { useAppState } from "./state/AppStateProvider";
 
 export default function App() {
-  const { state, setActiveCategory, setActiveDay } = useAppState();
+  const { state, status, setActiveCategory, setActiveDay } = useAppState();
   const activeCategory = state.ui.activeCategory;
   const activeDayByCategory = state.ui.activeDayByCategory;
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
     <div className="wrap">
+      <SyncNotice status={status} />
+
       <div className="intro">
         <p className="eyebrow-top">Lịch chăm sóc bản thân · dùng trong 4 tuần</p>
         <h1>Routine trọn vẹn — mặt, tóc &amp; cơ thể</h1>
@@ -16,7 +22,12 @@ export default function App() {
           Chọn một mục bên dưới để xem lịch chăm sóc theo từng ngày trong tuần, dùng đúng thứ tự sản phẩm bạn
           đang có.
         </p>
+        <button type="button" onClick={() => setSettingsOpen((open) => !open)}>
+          Cài đặt
+        </button>
       </div>
+
+      <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       <CategorySwitcher active={activeCategory} onSelect={setActiveCategory} />
 

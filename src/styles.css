@@ -143,3 +143,12 @@ li .note{color:var(--muted);font-size:12.6px;}
 .month-note code{background:rgba(255,255,255,.16);padding:2px 7px;border-radius:6px;font-size:12.5px;}
 
 footer{margin-top:40px;text-align:center;font-size:12.5px;color:var(--rose-deep, #c79ba1);font-weight:700;}
+
+/* ---------- SYNC NOTICE ---------- */
+.sync-notice{margin:0 0 20px;padding:12px 20px;border-radius:18px;background:var(--blush-deep);color:var(--rose-ink);font-size:13.5px;font-weight:700;text-align:center;border:1px solid var(--line);}
+.sync-notice--offline{border-color:var(--rose);}
+.sync-notice--unauthorized{border-width:2px;border-color:var(--rose-deep);}
+
+/* ---------- SETTINGS PANEL ---------- */
+.settings{margin:0 0 20px;padding:20px 22px;border-radius:18px;background:var(--blush-deep);color:var(--rose-ink);}
+.settings-field{display:block;font-size:12px;font-weight:700;letter-spacing:.03em;margin:0 0 8px;color:var(--rose-ink);}
