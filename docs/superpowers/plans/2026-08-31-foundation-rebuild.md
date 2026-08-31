@@ -978,7 +978,9 @@ where `PANEL_COPY` holds the face and body rows from the table above (`badgePref
 
 - [ ] **Step 6: Write `CategorySection`**
 
-`src/components/CategorySection.tsx` — the hero, legend, note boxes, and recommendation blocks are static markup; port them verbatim per category from `skincare-routine.html:174-287`. Theme classes come from a lookup:
+`src/components/CategorySection.tsx` — the hero, legend, note boxes, and recommendation blocks are static markup; port them verbatim per category from `skincare-routine.html:174-287`.
+
+**The three heroes are not identical — do not factor them into one shared component without parameterising what differs.** The decorative petals `<g>` uses `opacity="0.35"` for face (line 177) but `opacity="0.3"` for hair (line 230) and body (line 260). A shared `Petals` component with a hardcoded opacity silently changes two of the three categories. Check every attribute, not just the text, before extracting anything shared here. Theme classes come from a lookup:
 
 ```tsx
 import Gallery from "./Gallery";
