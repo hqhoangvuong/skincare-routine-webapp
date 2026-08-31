@@ -199,7 +199,12 @@ app header (not inside a category hero, so it stays category-agnostic).
 Contents for this sub-project:
 
 - A labelled date input bound to `AppState.programStartDate`.
-- The current sync status line (the same information `SyncNotice` shows).
+
+The sync status line is deliberately NOT repeated here. `SyncNotice` is
+rendered once, at the top level of the app, where it is visible without
+opening settings. Rendering it a second time inside the panel would put two
+`role="status"` live regions with identical text on the page at once, which
+announces twice to screen-reader users and reads as a duplicate on screen.
 
 Nothing else. Sub-project 5 adds the reminders toggle and test-send button to
 this panel.

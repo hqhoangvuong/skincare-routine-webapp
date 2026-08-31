@@ -1858,10 +1858,9 @@ export default function SyncNotice({ status }: { status: SyncStatus }) {
 
 ```tsx
 import { useAppState } from "../state/AppStateProvider";
-import SyncNotice from "./SyncNotice";
 
 export default function SettingsPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { state, status, setProgramStartDate } = useAppState();
+  const { state, setProgramStartDate } = useAppState();
   if (!open) return null;
 
   return (
@@ -1875,7 +1874,9 @@ export default function SettingsPanel({ open, onClose }: { open: boolean; onClos
         value={state.programStartDate}
         onChange={(event) => setProgramStartDate(event.target.value)}
       />
-      <SyncNotice status={status} />
+      {/* No SyncNotice here: App renders exactly one at the top level. A second
+          copy would put two role="status" live regions with identical text on
+          the page, announcing twice to screen readers. */}
       <button type="button" onClick={onClose}>
         Đóng
       </button>
