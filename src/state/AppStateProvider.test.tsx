@@ -4,13 +4,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppStateProvider, useAppState } from "./AppStateProvider";
 
 function Probe() {
-  const { state, setActiveCategory, setActiveDay } = useAppState();
+  const { state, setActiveCategory, setActiveDay, setProgramStartDate } = useAppState();
   return (
     <div>
       <span data-testid="category">{state.ui.activeCategory}</span>
       <span data-testid="day">{state.ui.activeDayByCategory[state.ui.activeCategory]}</span>
+      <span data-testid="start">{state.programStartDate}</span>
       <button onClick={() => setActiveCategory("hair")}>to hair</button>
       <button onClick={() => setActiveDay("hair", 4)}>hair day 4</button>
+      <button onClick={() => setProgramStartDate("2026-07-01")}>set start</button>
     </div>
   );
 }
@@ -45,6 +47,24 @@ describe("AppStateProvider", () => {
     await waitFor(() => expect(screen.getByTestId("category")).toHaveTextContent("face"));
     await userEvent.click(screen.getByText("hair day 4"));
     expect(screen.getByTestId("day")).toHaveTextContent("0"); // face is still active
+    await userEvent.click(screen.getByText("to hair"));
+    expect(screen.getByTestId("day")).toHaveTextContent("4");
+  });
+
+  it("sets the program start date without disturbing ui state", async () => {
+    // setProgramStartDate is what the Task 9 settings panel is built on, and a
+    // spread bug here would silently drop the whole ui object.
+    render(
+      <AppStateProvider>
+        <Probe />
+      </AppStateProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId("category")).toHaveTextContent("face"));
+    await userEvent.click(screen.getByText("hair day 4"));
+    await userEvent.click(screen.getByText("set start"));
+
+    expect(screen.getByTestId("start")).toHaveTextContent("2026-07-01");
+    // ui must survive the programStartDate write
     await userEvent.click(screen.getByText("to hair"));
     expect(screen.getByTestId("day")).toHaveTextContent("4");
   });
