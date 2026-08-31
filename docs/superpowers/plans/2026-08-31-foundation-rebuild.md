@@ -531,6 +531,10 @@ describe("pickIcon", () => {
     ["Kem chống nắng SPF 30–50 PA+++", "sun"],
     ["Rửa mặt nhẹ bằng nước ấm", "water"],
     ["Để tóc nghỉ hoàn toàn", "flower"],
+    // Synthetic input, not a real product: it is the only kind of string that
+    // can distinguish "dau tested before kem" from the reverse. Without it,
+    // swapping those two branches passes the whole suite.
+    ["Dầu dưỡng dạng kem ban đêm", "serum"],
   ])("maps %s to the %s icon", (name, expected) => {
     expect(pickIcon(name)).toBe(expected);
   });
