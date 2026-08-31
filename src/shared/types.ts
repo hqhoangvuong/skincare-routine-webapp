@@ -1,5 +1,7 @@
 export type Category = "face" | "hair" | "body";
 
+export const CATEGORIES: readonly Category[] = ["face", "hair", "body"];
+
 /** [product name, note]. The note is "" when there isn't one. */
 export type StepTuple = [product: string, note: string];
 
@@ -44,11 +46,29 @@ export type AppState = {
 
 export type SyncStatus = "synced" | "offline" | "unauthorized";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isCategory(value: unknown): value is Category {
+  return CATEGORIES.some((category) => category === value);
+}
+
+/** Every known category must map to a number; a missing or non-number entry fails. */
+function isActiveDayByCategory(value: unknown): value is Record<Category, number> {
+  if (!isRecord(value)) return false;
+  return CATEGORIES.every((category) => typeof value[category] === "number");
+}
+
 /**
  * Validates an untrusted blob parsed from JSON. Lives here, beside the type it
  * guards, so the frontend's localStorage mirror and the Worker's PUT handler
  * validate identically — two separate implementations would be free to drift,
  * and the failure mode is one side accepting a blob the other rejects.
+ *
+ * The nested `ui` shape is validated too, not just its presence: on the
+ * Worker's PUT path a shape-blind guard would let a malformed `ui` (e.g.
+ * `{}` or `[]`) get persisted into KV and served back on every later load.
  */
 export function isAppState(value: unknown): value is AppState {
   if (typeof value !== "object" || value === null) return false;
@@ -57,7 +77,8 @@ export function isAppState(value: unknown): value is AppState {
     v.version === 1 &&
     typeof v.updatedAt === "string" &&
     typeof v.programStartDate === "string" &&
-    typeof v.ui === "object" &&
-    v.ui !== null
+    isRecord(v.ui) &&
+    isCategory(v.ui.activeCategory) &&
+    isActiveDayByCategory(v.ui.activeDayByCategory)
   );
 }
