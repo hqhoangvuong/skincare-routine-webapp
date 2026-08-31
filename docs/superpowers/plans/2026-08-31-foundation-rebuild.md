@@ -2314,6 +2314,11 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Explicit rather than relying on the action's default. This workflow
+          # cannot be executed before its first real run, so an unstated default
+          # is an unknown that would surface as a confusing first-deploy
+          # failure. One line removes it.
+          command: deploy
 ```
 
 The `src/shared/**` path filter matters: the Worker imports shared modules, so a change there must redeploy it. Sub-project 5 depends on this being right — a routine change that reaches the site but not the Worker is exactly the drift the push design warns about.
