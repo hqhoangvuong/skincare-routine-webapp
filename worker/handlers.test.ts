@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from "vitest";
-import { handleRequest, STATE_KEY, type Env } from "./index";
+import { handleRequest, STATE_KEY, type Env } from "./handlers";
 import { makeDefaultState } from "../src/shared/defaults";
 
 function fakeKv() {
