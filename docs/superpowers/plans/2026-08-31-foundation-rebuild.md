@@ -374,7 +374,30 @@ export type AppState = {
 };
 
 export type SyncStatus = "synced" | "offline" | "unauthorized";
+
+/**
+ * Validates an untrusted blob parsed from JSON. Lives here, beside the type it
+ * guards, so the frontend's localStorage mirror and the Worker's PUT handler
+ * validate identically — two separate implementations would be free to drift,
+ * and the failure mode is one side accepting a blob the other rejects.
+ */
+export function isAppState(value: unknown): value is AppState {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    v.version === 1 &&
+    typeof v.updatedAt === "string" &&
+    typeof v.programStartDate === "string" &&
+    typeof v.ui === "object" &&
+    v.ui !== null
+  );
+}
 ```
+
+The single `as Record<string, unknown>` inside the guard is the one place a cast
+is permitted, and only because it is immediately followed by the checks that
+justify it — that is what a type predicate is for. Everywhere else the
+no-casts constraint holds.
 
 - [ ] **Step 2: Write the failing test**
 
@@ -1174,8 +1197,8 @@ export function readMirror(): AppState | null {
   try {
     const raw = localStorage.getItem(MIRROR_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as AppState;
-    return parsed.version === 1 ? parsed : null;
+    const parsed: unknown = JSON.parse(raw);
+    return isAppState(parsed) ? parsed : null;
   } catch {
     return null;
   }
@@ -1976,7 +1999,7 @@ Expected: FAIL — cannot resolve `./index`.
 
 ```ts
 import { makeDefaultState } from "../src/shared/defaults";
-import type { AppState } from "../src/shared/types";
+import { isAppState } from "../src/shared/types";
 
 export const STATE_KEY = "state:default";
 
@@ -2000,15 +2023,6 @@ function json(body: unknown, status: number, env: Env): Response {
     status,
     headers: { "Content-Type": "application/json", ...corsHeaders(env) },
   });
-}
-
-function isAppState(value: unknown): value is AppState {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    (value as AppState).version === 1 &&
-    typeof (value as AppState).updatedAt === "string"
-  );
 }
 
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
