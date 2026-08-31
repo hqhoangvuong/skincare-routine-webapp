@@ -35,10 +35,16 @@ describe("GET /state", () => {
     expect(env.STATE.store.get(STATE_KEY)).toBeTruthy();
   });
 
-  it("returns the same programStartDate on a second read", async () => {
-    const first = await (await handleRequest(new Request("https://w.test/state"), env)).json();
-    const second = await (await handleRequest(new Request("https://w.test/state"), env)).json();
-    expect(second.programStartDate).toBe(first.programStartDate);
+  it("does not re-seed on a second read", async () => {
+    // Deliberately NOT comparing programStartDate: it is day-granularity
+    // (todayIso), so two re-seeds milliseconds apart produce identical values
+    // and the assertion would pass against the very regression it targets.
+    // The stored blob's identity is what proves KV was read, not rebuilt.
+    await handleRequest(new Request("https://w.test/state"), env);
+    const seeded = env.STATE.store.get(STATE_KEY);
+    await handleRequest(new Request("https://w.test/state"), env);
+    expect(env.STATE.store.get(STATE_KEY)).toBe(seeded);
+    expect(env.STATE.store.size).toBe(1);
   });
 
   it("returns the stored state when one exists", async () => {
