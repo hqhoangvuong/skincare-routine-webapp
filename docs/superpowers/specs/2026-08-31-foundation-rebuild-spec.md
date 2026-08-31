@@ -84,7 +84,8 @@ the root `node_modules` and lockfile. No workspaces, no monorepo tooling.
       date.ts                 timezone-pinned date helpers
       defaults.ts             makeDefaultState()
   worker/
-    index.ts                  the Worker
+    handlers.ts               routing, CORS, token check, KV access
+    index.ts                  default export only (see note below)
     handlers.test.ts
 ```
 
