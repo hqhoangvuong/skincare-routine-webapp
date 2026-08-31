@@ -885,7 +885,9 @@ export default function DayTabs({
           onClick={() => onSelect(index)}
         >
           {day.short}
-          <span className="d">{day.full}</span>
+          {/* Last word only: the source renders day.full.split(" ").pop(),
+              so "Thứ Hai" shows as "Hai" and "Chủ Nhật" as "Nhật". */}
+          <span className="d">{day.full.split(" ").pop()}</span>
         </button>
       ))}
     </div>
@@ -893,7 +895,7 @@ export default function DayTabs({
 }
 ```
 
-Check the tab's inner markup against `buildWeekTabs` before finishing — the short label and the `.d` span must appear in the same order as the original.
+Check the tab's inner markup against `buildWeekTabs` (`skincare-routine.html:338-357`) before finishing — the short label and the `.d` span must appear in the same order as the original.
 
 - [ ] **Step 5: Write `DayPanel`**
 
