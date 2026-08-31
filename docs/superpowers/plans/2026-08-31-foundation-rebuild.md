@@ -783,7 +783,7 @@ The bulk of the visual port. After this task the app renders everything the old 
 `src/components/CategorySection.test.tsx`:
 
 ```tsx
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import CategorySection from "./CategorySection";
@@ -791,9 +791,16 @@ import { routine } from "../shared/routine";
 
 describe("CategorySection", () => {
   it("renders every product in the gallery", () => {
-    render(<CategorySection category="body" activeDay={0} onSelectDay={() => {}} />);
+    const { container } = render(
+      <CategorySection category="body" activeDay={0} onSelectDay={() => {}} />,
+    );
+    // Scoped to .gallery deliberately: two of the three body product names are
+    // also step names on body Monday, so an unscoped getByText matches twice
+    // and throws. Scoping also makes this assert the stronger thing — that the
+    // product appears in the gallery specifically, not merely somewhere.
+    const gallery = within(container.querySelector(".gallery") as HTMLElement);
     for (const product of routine.body.products) {
-      expect(screen.getByText(product)).toBeInTheDocument();
+      expect(gallery.getByText(product)).toBeInTheDocument();
     }
   });
 
