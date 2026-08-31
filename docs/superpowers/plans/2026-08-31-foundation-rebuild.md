@@ -66,6 +66,7 @@ Sets up the toolchain and delivers the first tested module. Scaffolding is folde
     "@testing-library/jest-dom": "^6.5.0",
     "@testing-library/react": "^16.0.1",
     "@testing-library/user-event": "^14.5.2",
+    "@types/node": "^20.16.5",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
@@ -105,7 +106,7 @@ export default defineConfig({
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
@@ -116,11 +117,13 @@ export default defineConfig({
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "types": ["vitest/globals"]
+    "types": ["vitest/globals", "node"]
   },
   "include": ["src", "vite.config.ts"]
 }
 ```
+
+`"node"` is required, not incidental: `vite.config.ts` reads `process.env.BASE_PATH` per the spec, and Vite's own type declarations reference `node:http`, `Buffer`, and the `NodeJS` namespace. `lib` is `ESNext` rather than `ES2022` because `@vitest/utils` references `Symbol.asyncDispose`. `@types/node` is a types-only devDependency and does not count against the "no new runtime dependencies" constraint.
 
 `tsconfig.worker.json`:
 
@@ -136,9 +139,12 @@ export default defineConfig({
     "noEmit": true,
     "types": ["@cloudflare/workers-types"]
   },
-  "include": ["worker", "src/shared"]
+  "include": ["worker", "src/shared"],
+  "exclude": ["**/*.test.ts"]
 }
 ```
+
+The `exclude` is load-bearing. `src/shared` contains test files that import vitest; pulling vitest and tinybench types into a `@cloudflare/workers-types` context produces irreconcilable `EventTarget` conflicts. Worker test files are still executed by Vitest under the frontend config — they are simply not type-checked by this config.
 
 `src/test-setup.ts`:
 
