@@ -393,10 +393,15 @@ describe("routine data", () => {
     }
   });
 
-  it("orders days from Monday (T2) to Sunday (CN)", () => {
-    const shorts = routine.face.days.map((d) => d.short);
-    expect(shorts).toEqual(["T2", "T3", "T4", "T5", "T6", "T7", "CN"]);
-  });
+  // Every category, not just face — this is the only assertion standing
+  // between a reordered day and a silently wrong routine.
+  it.each(["face", "hair", "body"] as const)(
+    "orders %s days from Monday (T2) to Sunday (CN)",
+    (category) => {
+      const shorts = routine[category].days.map((d) => d.short);
+      expect(shorts).toEqual(["T2", "T3", "T4", "T5", "T6", "T7", "CN"]);
+    },
+  );
 
   it("gives face and body days am/pm lists, and hair days a flat steps list", () => {
     expect(isHairDay(routine.face.days[0])).toBe(false);
