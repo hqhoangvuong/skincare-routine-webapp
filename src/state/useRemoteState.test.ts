@@ -1,3 +1,4 @@
+import { StrictMode } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useRemoteState } from "./useRemoteState";
@@ -92,10 +93,34 @@ describe("useRemoteState", () => {
       vi.advanceTimersByTime(600);
     });
 
-    const puts = fetchSpy.mock.calls.filter(([, init]) => (init as RequestInit)?.method === "PUT");
+    // No casts: vi.fn(impl) already types mock.calls from impl's signature,
+    // so `init` is RequestInit | undefined here.
+    const puts = fetchSpy.mock.calls.filter(([, init]) => init?.method === "PUT");
     expect(puts).toHaveLength(1);
-    expect((puts[0][1] as RequestInit).headers).toMatchObject({ "X-Write-Token": "secret" });
-    expect(JSON.parse((puts[0][1] as RequestInit).body as string).programStartDate).toBe("2026-01-02");
+    expect(puts[0][1]?.headers).toMatchObject({ "X-Write-Token": "secret" });
+    const body = puts[0][1]?.body;
+    expect(typeof body).toBe("string");
+    expect(JSON.parse(String(body)).programStartDate).toBe("2026-01-02");
+  });
+
+  it("does not double-PUT when mounted under StrictMode", async () => {
+    // React 18 StrictMode double-invokes effects and state updaters. The mount
+    // path's local-newer branch is the one that PUTs, so this crosses the
+    // highest-risk pair: a PUT is expected, and the effect runs twice.
+    writeMirror({
+      ...makeDefaultState(),
+      updatedAt: "2026-08-31T10:00:00.000Z",
+      programStartDate: "2026-07-01",
+    });
+    const fetchSpy = mockFetch(async (_url, init) =>
+      init?.method === "PUT" ? new Response(null, { status: 204 }) : jsonResponse(remoteState),
+    );
+    const { result } = renderHook(() => useRemoteState(), { wrapper: StrictMode });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    await waitFor(() => {
+      const puts = fetchSpy.mock.calls.filter(([, init]) => init?.method === "PUT");
+      expect(puts).toHaveLength(1);
+    });
   });
 
   it("keeps local state and mirrors it when the write fails", async () => {
