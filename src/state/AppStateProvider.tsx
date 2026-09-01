@@ -34,7 +34,15 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             activeDayByCategory: { ...prev.ui.activeDayByCategory, [category]: day },
           },
         })),
-      setProgramStartDate: (iso) => update((prev) => ({ ...prev, programStartDate: iso })),
+      setProgramStartDate: (iso) => {
+        // A cleared <input type="date"> posts "" — ignore it rather than write a
+        // blank programStartDate that would make programWeek()/resolveDay() clamp.
+        if (!iso) return;
+        update((prev) => ({ ...prev, programStartDate: iso }));
+      },
+      // Stamps the date from the real todayIso(); DayPanel/WeekProgress accept a
+      // `now` override for tests, but this seam is intentionally one-sided —
+      // production check-offs are always "real now".
       toggleStep: (category, dayIndex, phase, stepIndex) =>
         update((prev) =>
           toggleCompletedStep(prev, {

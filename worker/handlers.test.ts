@@ -70,6 +70,15 @@ describe("GET /state", () => {
     expect(JSON.parse(String(env.STATE.store.get(STATE_KEY))).version).toBe(2);
   });
 
+  it("reseeds when the stored blob is not valid JSON", async () => {
+    await env.STATE.put(STATE_KEY, "{not json");
+    const response = await handleRequest(new Request("https://w.test/state"), env);
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.version).toBe(2);
+    expect(JSON.parse(String(env.STATE.store.get(STATE_KEY))).version).toBe(2);
+  });
+
   it("reseeds when the stored blob is unrecognisable", async () => {
     await env.STATE.put(STATE_KEY, JSON.stringify({ nonsense: true }));
     const response = await handleRequest(new Request("https://w.test/state"), env);

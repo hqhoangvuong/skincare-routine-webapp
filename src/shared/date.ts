@@ -58,10 +58,17 @@ export function programWeek(startIso: string, nowIso: string): number {
   const [sy, sm, sd] = mondayIsoOf(startIso).split("-").map(Number);
   const [ny, nm, nd] = mondayIsoOf(nowIso).split("-").map(Number);
   const diffDays = (Date.UTC(ny, nm - 1, nd) - Date.UTC(sy, sm - 1, sd)) / 86_400_000;
+  // An empty or malformed startIso/nowIso (e.g. a cleared <input type="date">)
+  // makes diffDays NaN; clamp to week 1 rather than render "Tuần NaN".
+  if (!Number.isFinite(diffDays)) return 1;
   return Math.max(1, Math.floor(diffDays / 7) + 1);
 }
 
-/** Position in the repeating 4-week cycle: 1, 2, 3, 4, 1, 2, ... */
+/**
+ * Position in the repeating 4-week cycle: 1, 2, 3, 4, 1, 2, ...
+ * No production caller yet — staged for a later sub-project (notifications);
+ * `resolveDay` re-derives the same formula inline by design.
+ */
 export function weekCyclePosition(startIso: string, nowIso: string): number {
   return ((programWeek(startIso, nowIso) - 1) % 4) + 1;
 }

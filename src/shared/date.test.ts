@@ -74,6 +74,10 @@ describe("programWeek", () => {
   it("clamps a now before the start date to 1", () => {
     expect(programWeek("2026-08-26", "2026-08-01")).toBe(1);
   });
+  it("clamps to 1 when either date is empty or malformed", () => {
+    expect(programWeek("", "2026-08-26")).toBe(1);
+    expect(programWeek("2026-08-24", "")).toBe(1);
+  });
 });
 
 describe("weekCyclePosition", () => {

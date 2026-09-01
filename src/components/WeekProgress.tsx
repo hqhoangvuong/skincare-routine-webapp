@@ -31,9 +31,9 @@ export default function WeekProgress({
             <li
               key={short}
               className={`week-progress-marker ${fill}${index === today ? " is-today" : ""}`}
-              aria-label={`${short}: ${done}/${total}`}
             >
               <span aria-hidden="true">{short}</span>
+              <span className="visually-hidden">{`${short}: ${done}/${total}`}</span>
             </li>
           );
         })}

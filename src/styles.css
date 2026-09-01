@@ -123,7 +123,7 @@ h2.section-title::before{content:"❀";font-size:14px;color:var(--rose);}
 ul.steps{list-style:none;margin:0;padding:8px 20px 18px;}
 ul.steps li{display:flex;gap:14px;align-items:center;padding:12px 4px;border-bottom:1px dashed var(--line);font-size:14.3px;line-height:1.5;}
 ul.steps li:last-child{border-bottom:none;}
-.icon-badge{flex:none;width:38px;height:38px;border-radius:50%;background:var(--blush-deep);display:flex;align-items:center;justify-content:center;margin-top:1px;color:var(--rose-deep);}
+.icon-badge{flex:none;width:38px;height:38px;border-radius:50%;background:var(--blush-deep);display:flex;align-items:center;justify-content:center;color:var(--rose-deep);}
 .card.pm .icon-badge{background:linear-gradient(135deg,var(--pm-grad-1),var(--pm-grad-2));color:#fff;}
 li strong{display:block;font-weight:700;color:#5c454a;}
 li .note{color:var(--muted);font-size:12.6px;}
@@ -202,3 +202,5 @@ footer{margin-top:40px;text-align:center;font-size:12.5px;color:var(--rose-deep,
 .week-progress-marker.is-partial{border-color:var(--gold);color:var(--rose-ink);}
 .week-progress-marker.is-full{background:linear-gradient(135deg,var(--rose),var(--rose-deep));border-color:transparent;color:#fff;}
 .week-progress-marker.is-today{box-shadow:0 0 0 2px var(--rose-deep);}
+
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}

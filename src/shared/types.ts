@@ -112,7 +112,12 @@ export function isAppState(value: unknown): value is AppState {
   );
 }
 
-type V1State = Omit<AppState, "version" | "completedSteps"> & { version: 1 };
+type V1State = {
+  version: 1;
+  updatedAt: string;
+  programStartDate: string;
+  ui: { activeCategory: Category; activeDayByCategory: Record<Category, number> };
+};
 
 /**
  * A frozen snapshot of the v1 shape (this is intentionally a near-duplicate of

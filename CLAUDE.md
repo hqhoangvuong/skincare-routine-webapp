@@ -136,7 +136,9 @@ and flows through one path:
 - `completedSteps` on `AppState` is a flat dated log of checked steps (`{ date, category, phase,
   stepIndex }`), written via `useAppState().toggleStep(...)` and carried on the same debounced `PUT`. The
   visible checkboxes are the entries whose `date` falls in the current Mon–Sun week; older entries stay in
-  the log for a later stats view. `AppState` is `version: 2`; `migrate()` in `src/shared/types.ts`
+  the log for a later stats view. Checks are keyed by calendar date + step index, not by resolved product,
+  so editing `programStartDate` across the week-2/3 boundary can leave a checked slot showing the other
+  week's product — the accepted positional-identity trade-off. `AppState` is `version: 2`; `migrate()` in `src/shared/types.ts`
   upgrades a v1 blob (adds `completedSteps: []`) and is called on every untrusted read — the
   `localStorage` mirror, `fetchRemote`, and the Worker's `GET` (which also persists the upgrade). Add
   future migrations there; keep `isV1State` a frozen snapshot.
@@ -227,6 +229,11 @@ build validates them, so if either drifts from reality the failure is silent and
   and the app breaks in the confusing way: every browser request fails the CORS check (`X-Write-Token`
   is a non-simple header, so even the `PUT` preflight is rejected), the UI shows "Ngoại tuyến — đang
   hiển thị dữ liệu đã lưu" indefinitely, and nothing on screen points at the origin as the cause.
+
+A push touching `src/shared/**` fires both deploy workflows at once and they race; whichever lands second
+leaves a brief window where an old client GETs a v2 blob it doesn't expect (→ transient "Ngoại tuyến",
+self-heals on reload). No data is lost: the old client's repair-`PUT` of a v1 body is 400'd by
+`isAppState()` before it can clobber the migrated blob, and the local mirror wins the next reconcile.
 
 The four GitHub Actions repo secrets are set: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`,
 `WRITE_TOKEN` (also stored as a Worker secret via `wrangler secret put`), and `VITE_WORKER_URL`.

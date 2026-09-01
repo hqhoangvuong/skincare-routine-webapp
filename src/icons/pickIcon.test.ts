@@ -16,6 +16,7 @@ describe("pickIcon", () => {
     ["Winter Melon Gel Cream", "cream"],
     ["Mặt nạ Wonjin phục hồi 8 CICA relaxing", "mask"],
     ["Mặt nạ Histolab Natural White", "mask"],
+    ["Mặt nạ Histolab Peppermint", "mask"],
     ["Kem chống nắng SPF 30–50 PA+++", "sun"],
     ["Rửa mặt nhẹ bằng nước ấm", "water"],
     ["Để tóc nghỉ hoàn toàn", "flower"],

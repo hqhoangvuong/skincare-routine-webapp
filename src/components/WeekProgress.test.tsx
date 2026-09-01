@@ -37,6 +37,19 @@ describe("WeekProgress", () => {
     expect(markers[0].className).toContain("is-empty"); // Monday
   });
 
+  it("marks a day with only some steps checked as partial", () => {
+    // hair Tuesday (dayIndex 1) has 2 steps; tick only one for that week's Tuesday
+    const completedSteps = [
+      { date: "2026-08-25", category: "hair" as const, phase: "steps" as const, stepIndex: 0 },
+    ];
+    render(
+      <WeekProgress category="hair" programStartDate={START} completedSteps={completedSteps} now={WED_WEEK1} />,
+    );
+    const markers = screen.getAllByRole("listitem");
+    expect(markers[1].className).toContain("is-partial"); // Tuesday
+    expect(markers[1].className).not.toContain("is-full");
+  });
+
   it("marks today's column", () => {
     render(<WeekProgress category="face" programStartDate={START} completedSteps={[]} now={WED_WEEK1} />);
     const markers = screen.getAllByRole("listitem");
