@@ -3,15 +3,14 @@ main = "worker/index.ts"
 compatibility_date = "2026-08-01"
 
 [vars]
-# REPLACE before first deploy — see CLAUDE.md "Deployment". This must be the
-# exact Pages origin (scheme + host, no path), e.g. https://jane.github.io.
-# Left as the placeholder, every browser request is blocked by CORS and the app
-# shows "Ngoại tuyến" forever with nothing in the UI to explain why.
-ALLOWED_ORIGIN = "https://<user>.github.io"
+# The exact Pages origin (scheme + host, no path). If this ever stops matching
+# the real Pages URL, every browser request is blocked by CORS and the app shows
+# "Ngoại tuyến" forever with nothing in the UI to explain why.
+ALLOWED_ORIGIN = "https://hqhoangvuong.github.io"
 
 [[kv_namespaces]]
 binding = "STATE"
 # REPLACE before first deploy — see CLAUDE.md "Deployment". The id of the KV
 # namespace created in the Cloudflare dashboard (or `wrangler kv:namespace
 # create STATE`). Left as the placeholder, `wrangler deploy` fails outright.
-id = "<kv-namespace-id>"
+id = "73f1dda9aef741a9b1dab01bd7909f60"
