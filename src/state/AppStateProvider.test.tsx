@@ -4,16 +4,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppStateProvider, useAppState } from "./AppStateProvider";
 
 function Probe() {
-  const { state, status, setActiveCategory, setActiveDay, setProgramStartDate } = useAppState();
+  const { state, status, setActiveCategory, setActiveDay, setProgramStartDate, toggleStep } =
+    useAppState();
   return (
     <div>
       <span data-testid="status">{status}</span>
       <span data-testid="category">{state.ui.activeCategory}</span>
       <span data-testid="day">{state.ui.activeDayByCategory[state.ui.activeCategory]}</span>
       <span data-testid="start">{state.programStartDate}</span>
+      <span data-testid="completed">{state.completedSteps.length}</span>
       <button onClick={() => setActiveCategory("hair")}>to hair</button>
       <button onClick={() => setActiveDay("hair", 4)}>hair day 4</button>
       <button onClick={() => setProgramStartDate("2026-07-01")}>set start</button>
+      <button onClick={() => toggleStep("face", 2, "am", 0)}>toggle w-am-0</button>
     </div>
   );
 }
@@ -98,6 +101,20 @@ describe("AppStateProvider", () => {
       </AppStateProvider>,
     );
     await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("offline"));
+  });
+
+  it("toggles a completed step on and off through the context", async () => {
+    render(
+      <AppStateProvider>
+        <Probe />
+      </AppStateProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId("category")).toHaveTextContent("face"));
+    expect(screen.getByTestId("completed")).toHaveTextContent("0");
+    await userEvent.click(screen.getByText("toggle w-am-0"));
+    expect(screen.getByTestId("completed")).toHaveTextContent("1");
+    await userEvent.click(screen.getByText("toggle w-am-0"));
+    expect(screen.getByTestId("completed")).toHaveTextContent("0");
   });
 
   it("throws a useful error when used outside the provider", () => {
