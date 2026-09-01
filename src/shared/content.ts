@@ -2,8 +2,8 @@ import { routine } from "./routine";
 import { resolveStep } from "./schedule";
 import {
   isHairDay,
-  type AppState, type Category, type CategoryData, type DayData,
-  type StepPhase, type StoredDay, type StoredStep,
+  type AppState, type Category, type CategoryData, type CategoryOverride, type DayData,
+  type RoutineStep, type StepPhase, type StepTuple, type StoredDay, type StoredStep,
 } from "./types";
 
 export type ResolvedStep = { id: string; product: string; note: string };
@@ -82,4 +82,108 @@ export function resolveDayForState(
     am: day.am.map((s) => resolve(s, week)),
     pm: day.pm.map((s) => resolve(s, week)),
   };
+}
+
+/** Deep-ish clone of one override (arrays + step objects), safe to mutate. */
+function cloneOverride(o: CategoryOverride): CategoryOverride {
+  return {
+    products: [...o.products],
+    days: o.days.map((day) =>
+      "steps" in day
+        ? { ...day, steps: day.steps.map((s) => ({ ...s })) }
+        : { ...day, am: day.am.map((s) => ({ ...s })), pm: day.pm.map((s) => ({ ...s })) },
+    ),
+  };
+}
+
+/** The category's override, cloned; created from defaults (with derived ids) on first touch. */
+function ensureOverride(state: AppState, category: Category): CategoryOverride {
+  const existing = state.overrides?.[category];
+  if (existing) return cloneOverride(existing);
+  return { products: [...routine[category].products], days: getStoredDays(state, category) };
+}
+
+function withOverride(state: AppState, category: Category, o: CategoryOverride): AppState {
+  return { ...state, overrides: { ...state.overrides, [category]: o } };
+}
+
+function phaseArrayOf(day: StoredDay, phase: StepPhase): StoredStep[] {
+  if ("steps" in day) return day.steps;
+  return phase === "pm" ? day.pm : day.am;
+}
+
+function setPhaseArray(day: StoredDay, phase: StepPhase, next: StoredStep[]): StoredDay {
+  if ("steps" in day) return { ...day, steps: next };
+  return phase === "pm" ? { ...day, pm: next } : { ...day, am: next };
+}
+
+export function addProduct(state: AppState, category: Category): AppState {
+  const o = ensureOverride(state, category);
+  o.products.push("");
+  return withOverride(state, category, o);
+}
+
+export function renameProduct(state: AppState, category: Category, index: number, name: string): AppState {
+  const o = ensureOverride(state, category);
+  if (index >= 0 && index < o.products.length) o.products[index] = name;
+  return withOverride(state, category, o);
+}
+
+export function removeProduct(state: AppState, category: Category, index: number): AppState {
+  const o = ensureOverride(state, category);
+  if (index >= 0 && index < o.products.length) o.products.splice(index, 1);
+  return withOverride(state, category, o);
+}
+
+export function addStep(
+  state: AppState, category: Category, dayIndex: number, phase: StepPhase,
+): AppState {
+  const o = ensureOverride(state, category);
+  const n = state.stepSeq ?? 0;
+  const day = o.days[dayIndex];
+  const blank: StepTuple = ["", ""];
+  const next = [...phaseArrayOf(day, phase), { id: `${category}.${dayIndex}.${phase}.new-${n}`, step: blank }];
+  o.days[dayIndex] = setPhaseArray(day, phase, next);
+  return { ...withOverride(state, category, o), stepSeq: n + 1 };
+}
+
+export function updateStepTuple(
+  state: AppState, category: Category, dayIndex: number, phase: StepPhase,
+  id: string, product: string, note: string,
+): AppState {
+  const o = ensureOverride(state, category);
+  const day = o.days[dayIndex];
+  const step: StepTuple = [product, note];
+  const next = phaseArrayOf(day, phase).map((s) => (s.id === id ? { id, step } : s));
+  o.days[dayIndex] = setPhaseArray(day, phase, next);
+  return withOverride(state, category, o);
+}
+
+export function removeStep(
+  state: AppState, category: Category, dayIndex: number, phase: StepPhase, id: string,
+): AppState {
+  const o = ensureOverride(state, category);
+  const day = o.days[dayIndex];
+  const next = phaseArrayOf(day, phase).filter((s) => s.id !== id);
+  o.days[dayIndex] = setPhaseArray(day, phase, next);
+  return withOverride(state, category, o);
+}
+
+export function setStepVariant(
+  state: AppState, category: Category, dayIndex: number, phase: StepPhase,
+  id: string, variant: RoutineStep,
+): AppState {
+  const o = ensureOverride(state, category);
+  const day = o.days[dayIndex];
+  const next = phaseArrayOf(day, phase).map((s) => (s.id === id ? { id, step: variant } : s));
+  o.days[dayIndex] = setPhaseArray(day, phase, next);
+  return withOverride(state, category, o);
+}
+
+export function resetCategory(state: AppState, category: Category): AppState {
+  if (!state.overrides?.[category]) return state;
+  const nextOverrides = { ...state.overrides };
+  delete nextOverrides[category];
+  const isEmpty = Object.keys(nextOverrides).length === 0;
+  return { ...state, overrides: isEmpty ? undefined : nextOverrides };
 }

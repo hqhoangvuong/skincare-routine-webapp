@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { makeDefaultState } from "./defaults";
 import { routine } from "./routine";
-import { getCategoryData, resolveDayForState, stepId } from "./content";
-import type { AppState, CategoryOverride } from "./types";
+import {
+  getCategoryData, resolveDayForState, stepId,
+  addProduct, renameProduct, removeProduct,
+  addStep, updateStepTuple, removeStep, setStepVariant, resetCategory,
+} from "./content";
+import type { AppState, CategoryOverride, ThresholdVariant } from "./types";
 
 const base: AppState = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
 
@@ -69,5 +73,71 @@ describe("resolveDayForState", () => {
     const d = resolveDayForState(state, "face", 0, 1);
     if (d.kind !== "facebody") throw new Error("expected facebody");
     expect(d.am[1]).toEqual({ id: "face.0.am.new-0", product: "Custom toner", note: "note" });
+  });
+});
+
+describe("mutation helpers", () => {
+  it("renameProduct clones on first touch and leaves other categories default", () => {
+    const s = renameProduct(base, "face", 0, "Renamed");
+    expect(s.overrides?.face?.products[0]).toBe("Renamed");
+    expect(s.overrides?.hair).toBeUndefined();
+    expect(base.overrides).toBeUndefined(); // input not mutated
+  });
+
+  it("addProduct / removeProduct adjust the products array", () => {
+    const added = addProduct(base, "face");
+    const n = routine.face.products.length;
+    expect(added.overrides?.face?.products).toHaveLength(n + 1);
+    expect(added.overrides?.face?.products[n]).toBe("");
+    const removed = removeProduct(added, "face", 0);
+    expect(removed.overrides?.face?.products).toHaveLength(n);
+  });
+
+  it("addStep appends a blank step with a new-<n> id and bumps stepSeq", () => {
+    const a = addStep(base, "face", 0, "pm");
+    expect(a.stepSeq).toBe(1);
+    const day = a.overrides?.face?.days[0];
+    if (!day || "steps" in day) throw new Error("expected a face day");
+    expect(day.pm[day.pm.length - 1]).toEqual({ id: "face.0.pm.new-0", step: ["", ""] });
+    // untouched steps keep derived ids
+    expect(day.pm[0].id).toBe("face.0.pm.0");
+    const b = addStep(a, "face", 0, "pm");
+    expect(b.stepSeq).toBe(2);
+    const day2 = b.overrides?.face?.days[0];
+    if (!day2 || "steps" in day2) throw new Error("face day");
+    expect(day2.pm[day2.pm.length - 1].id).toBe("face.0.pm.new-1");
+  });
+
+  it("updateStepTuple changes product/note, keeps id", () => {
+    const s = updateStepTuple(base, "face", 0, "am", "face.0.am.0", "New product", "New note");
+    const day = s.overrides?.face?.days[0];
+    if (!day || "steps" in day) throw new Error("face day");
+    expect(day.am[0]).toEqual({ id: "face.0.am.0", step: ["New product", "New note"] });
+  });
+
+  it("removeStep drops the step, other ids unchanged, stepSeq untouched", () => {
+    const s = removeStep(base, "hair", 0, "steps", "hair.0.steps.1");
+    const day = s.overrides?.hair?.days[0];
+    if (!day || !("steps" in day)) throw new Error("hair day");
+    expect(day.steps.find((x) => x.id === "hair.0.steps.1")).toBeUndefined();
+    expect(day.steps[0].id).toBe("hair.0.steps.0");
+    expect(s.stepSeq).toBeUndefined();
+  });
+
+  it("setStepVariant swaps the step form, preserving id", () => {
+    const variant: ThresholdVariant = {
+      kind: "threshold", untilWeek: 2, before: ["X", ""], from: ["Y", ""],
+    };
+    const s = setStepVariant(base, "face", 0, "am", "face.0.am.0", variant);
+    const day = s.overrides?.face?.days[0];
+    if (!day || "steps" in day) throw new Error("face day");
+    expect(day.am[0]).toEqual({ id: "face.0.am.0", step: variant });
+  });
+
+  it("resetCategory removes just that override", () => {
+    const two = renameProduct(renameProduct(base, "face", 0, "F"), "hair", 0, "H");
+    const s = resetCategory(two, "face");
+    expect(s.overrides?.face).toBeUndefined();
+    expect(s.overrides?.hair?.products[0]).toBe("H");
   });
 });
