@@ -6,7 +6,7 @@ import SyncNotice from "./components/SyncNotice";
 import { useAppState } from "./state/AppStateProvider";
 
 export default function App() {
-  const { state, status, setActiveCategory, setActiveDay } = useAppState();
+  const { state, status, setActiveCategory, setActiveDay, toggleStep } = useAppState();
   const activeCategory = state.ui.activeCategory;
   const activeDayByCategory = state.ui.activeDayByCategory;
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -44,6 +44,9 @@ export default function App() {
         category={activeCategory}
         activeDay={activeDayByCategory[activeCategory]}
         onSelectDay={(index) => setActiveDay(activeCategory, index)}
+        programStartDate={state.programStartDate}
+        completedSteps={state.completedSteps}
+        onToggleStep={toggleStep}
       />
 
       <footer>🌷 Điều chỉnh tần suất theo phản ứng thực tế của da &amp; tóc bạn nhé — đây là khung gợi ý, không phải quy tắc cứng.</footer>

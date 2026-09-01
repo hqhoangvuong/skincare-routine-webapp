@@ -2,7 +2,7 @@ import Gallery from "./Gallery";
 import DayTabs from "./DayTabs";
 import DayPanel from "./DayPanel";
 import { routine } from "../shared/routine";
-import type { Category } from "../shared/types";
+import type { Category, CompletedStep, StepPhase } from "../shared/types";
 
 const THEME_CLASS: Record<Category, string> = {
   face: "",
@@ -277,10 +277,16 @@ export default function CategorySection({
   category,
   activeDay,
   onSelectDay,
+  programStartDate,
+  completedSteps,
+  onToggleStep,
 }: {
   category: Category;
   activeDay: number;
   onSelectDay: (index: number) => void;
+  programStartDate: string;
+  completedSteps: CompletedStep[];
+  onToggleStep: (category: Category, dayIndex: number, phase: StepPhase, stepIndex: number) => void;
 }) {
   const data = routine[category];
   const Hero = HERO[category];
@@ -294,7 +300,13 @@ export default function CategorySection({
       <Gallery products={data.products} />
 
       <DayTabs days={data.days} activeDay={activeDay} onSelect={onSelectDay} />
-      <DayPanel day={data.days[activeDay]} category={category} />
+      <DayPanel
+        category={category}
+        dayIndex={activeDay}
+        programStartDate={programStartDate}
+        completedSteps={completedSteps}
+        onToggleStep={onToggleStep}
+      />
 
       <Extras />
     </section>
