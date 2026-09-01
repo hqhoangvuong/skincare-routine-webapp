@@ -5,6 +5,27 @@ export const CATEGORIES: readonly Category[] = ["face", "hair", "body"];
 /** [product name, note]. The note is "" when there isn't one. */
 export type StepTuple = [product: string, note: string];
 
+export type ThresholdVariant = {
+  kind: "threshold";
+  /** `before` applies to program-weeks 1..untilWeek; `from` applies from untilWeek+1 on. */
+  untilWeek: number;
+  before: StepTuple;
+  from: StepTuple;
+};
+
+export type CycleVariant = {
+  kind: "cycle";
+  /** Cycle length in weeks. Only 2 and 4 are offered in the editor. */
+  length: 2 | 4;
+  /** Exactly `length` entries; selected by `(week - 1) % length`. */
+  weeks: StepTuple[];
+};
+
+export type ConditionalStep = ThresholdVariant | CycleVariant;
+
+/** A step as authored: a plain [product, note] or a week-conditional step. */
+export type RoutineStep = StepTuple | ConditionalStep;
+
 export type StepPhase = "am" | "pm" | "steps";
 
 const STEP_PHASES: readonly StepPhase[] = ["am", "pm", "steps"];
@@ -85,6 +106,44 @@ export function isCompletedStep(value: unknown): value is CompletedStep {
     isStepPhase(value.phase) &&
     typeof value.stepIndex === "number"
   );
+}
+
+export function isStepTuple(value: unknown): value is StepTuple {
+  return (
+    Array.isArray(value) &&
+    value.length === 2 &&
+    typeof value[0] === "string" &&
+    typeof value[1] === "string"
+  );
+}
+
+export function isThresholdVariant(value: unknown): value is ThresholdVariant {
+  if (!isRecord(value)) return false;
+  return (
+    value.kind === "threshold" &&
+    typeof value.untilWeek === "number" &&
+    isStepTuple(value.before) &&
+    isStepTuple(value.from)
+  );
+}
+
+export function isCycleVariant(value: unknown): value is CycleVariant {
+  if (!isRecord(value)) return false;
+  if (value.kind !== "cycle") return false;
+  if (value.length !== 2 && value.length !== 4) return false;
+  return (
+    Array.isArray(value.weeks) &&
+    value.weeks.length === value.length &&
+    value.weeks.every(isStepTuple)
+  );
+}
+
+export function isConditionalStep(value: unknown): value is ConditionalStep {
+  return isThresholdVariant(value) || isCycleVariant(value);
+}
+
+export function isRoutineStep(value: unknown): value is RoutineStep {
+  return isStepTuple(value) || isConditionalStep(value);
 }
 
 /**

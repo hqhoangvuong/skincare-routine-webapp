@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { makeDefaultState } from "./defaults";
-import { isAppState, isCompletedStep, migrate } from "./types";
+import { isAppState, isCompletedStep, migrate, isStepTuple, isThresholdVariant, isCycleVariant, isConditionalStep, isRoutineStep } from "./types";
 
 const v2 = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
 
@@ -43,5 +43,47 @@ describe("migrate", () => {
     expect(migrate({ hello: "world" })).toBeNull();
     expect(migrate({ version: 1 })).toBeNull();
     expect(migrate(null)).toBeNull();
+  });
+});
+
+describe("RoutineStep guards", () => {
+  const tuple = ["Serum", "note"];
+  const threshold = { kind: "threshold", untilWeek: 2, before: ["A", ""], from: ["B", ""] };
+  const cycle2 = { kind: "cycle", length: 2, weeks: [["A", ""], ["B", ""]] };
+  const cycle4 = { kind: "cycle", length: 4, weeks: [["A", ""], ["B", ""], ["C", ""], ["D", ""]] };
+
+  it("isStepTuple accepts a 2-string array, rejects everything else", () => {
+    expect(isStepTuple(tuple)).toBe(true);
+    expect(isStepTuple(["A"])).toBe(false);
+    expect(isStepTuple(["A", 1])).toBe(false);
+    expect(isStepTuple(["A", "", ""])).toBe(false);
+    expect(isStepTuple({})).toBe(false);
+    expect(isStepTuple(threshold)).toBe(false);
+  });
+
+  it("isThresholdVariant checks shape, not the untilWeek >= 1 rule (that is UI coercion)", () => {
+    expect(isThresholdVariant(threshold)).toBe(true);
+    expect(isThresholdVariant({ ...threshold, untilWeek: 0 })).toBe(true);
+    expect(isThresholdVariant({ ...threshold, untilWeek: "2" })).toBe(false);
+    expect(isThresholdVariant({ ...threshold, before: ["A"] })).toBe(false);
+    expect(isThresholdVariant({ kind: "threshold" })).toBe(false);
+  });
+
+  it("isCycleVariant requires weeks.length === length and length in {2,4}", () => {
+    expect(isCycleVariant(cycle2)).toBe(true);
+    expect(isCycleVariant(cycle4)).toBe(true);
+    expect(isCycleVariant({ ...cycle2, length: 3 })).toBe(false);
+    expect(isCycleVariant({ ...cycle2, weeks: [["A", ""]] })).toBe(false); // length mismatch
+    expect(isCycleVariant({ ...cycle2, weeks: [["A", ""], ["B", 1]] })).toBe(false);
+  });
+
+  it("isConditionalStep / isRoutineStep compose the above", () => {
+    expect(isConditionalStep(threshold)).toBe(true);
+    expect(isConditionalStep(cycle4)).toBe(true);
+    expect(isConditionalStep(tuple)).toBe(false);
+    expect(isRoutineStep(tuple)).toBe(true);
+    expect(isRoutineStep(threshold)).toBe(true);
+    expect(isRoutineStep({ kind: "weird" })).toBe(false);
+    expect(isRoutineStep(null)).toBe(false);
   });
 });
