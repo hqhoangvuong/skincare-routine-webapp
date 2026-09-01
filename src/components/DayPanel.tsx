@@ -34,6 +34,7 @@ function Steps({
             <label className="step-check">
               <input
                 type="checkbox"
+                aria-label={product}
                 checked={checked}
                 onChange={() => onToggleStep(category, dayIndex, phase, index)}
               />

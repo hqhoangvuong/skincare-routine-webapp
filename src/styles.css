@@ -121,7 +121,7 @@ h2.section-title::before{content:"❀";font-size:14px;color:var(--rose);}
 .card-sub{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:0;}
 
 ul.steps{list-style:none;margin:0;padding:8px 20px 18px;}
-ul.steps li{display:flex;gap:14px;align-items:flex-start;padding:12px 4px;border-bottom:1px dashed var(--line);font-size:14.3px;line-height:1.5;}
+ul.steps li{display:flex;gap:14px;align-items:center;padding:12px 4px;border-bottom:1px dashed var(--line);font-size:14.3px;line-height:1.5;}
 ul.steps li:last-child{border-bottom:none;}
 .icon-badge{flex:none;width:38px;height:38px;border-radius:50%;background:var(--blush-deep);display:flex;align-items:center;justify-content:center;margin-top:1px;color:var(--rose-deep);}
 .card.pm .icon-badge{background:linear-gradient(135deg,var(--pm-grad-1),var(--pm-grad-2));color:#fff;}
@@ -185,7 +185,6 @@ footer{margin-top:40px;text-align:center;font-size:12.5px;color:var(--rose-deep,
 .settings-close:hover{transform:translateY(-1px);}
 
 /* --- step check-offs (progress tracking) --- */
-ul.steps li{align-items:center;}
 .step-check{flex:none;display:inline-flex;align-items:center;cursor:pointer;}
 .step-check input{position:absolute;width:1px;height:1px;opacity:0;margin:0;}
 .step-check-box{width:22px;height:22px;border-radius:8px;border:2px solid var(--line);background:var(--cream);transition:background .15s ease,border-color .15s ease;}

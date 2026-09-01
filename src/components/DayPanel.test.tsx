@@ -37,6 +37,15 @@ describe("DayPanel", () => {
     expect(screen.getByText("Serum Niacinamide 15% — Cocoon")).toBeInTheDocument();
   });
 
+  it("gives each step checkbox an accessible name from its product", () => {
+    render(
+      <DayPanel category="face" dayIndex={2} programStartDate={START} completedSteps={[]} onToggleStep={() => {}} now={WEEK3_NOW} />,
+    );
+    expect(
+      screen.getByRole("checkbox", { name: "Serum Niacinamide 15% — Cocoon" }),
+    ).toBeInTheDocument();
+  });
+
   it("renders a checkbox per step and calls onToggleStep with the slot", async () => {
     const { onToggleStep } = renderPanel();
     const boxes = screen.getAllByRole("checkbox");
