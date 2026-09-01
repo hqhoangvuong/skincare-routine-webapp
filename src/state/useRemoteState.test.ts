@@ -242,7 +242,7 @@ describe("useRemoteState", () => {
     );
     const { result } = renderHook(() => useRemoteState());
     await waitFor(() => expect(result.current.loaded).toBe(true));
-    expect(result.current.state.version).toBe(2);
+    expect(result.current.state.version).toBe(3);
     expect(result.current.state.completedSteps).toEqual([]);
     // A v1 body is valid-after-migrate, so this is NOT the corrupt-blob repair
     // path: no forced PUT, status stays synced.

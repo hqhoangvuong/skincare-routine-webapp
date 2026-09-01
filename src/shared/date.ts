@@ -66,8 +66,7 @@ export function programWeek(startIso: string, nowIso: string): number {
 
 /**
  * Position in the repeating 4-week cycle: 1, 2, 3, 4, 1, 2, ...
- * No production caller yet — staged for a later sub-project (notifications);
- * `resolveDay` re-derives the same formula inline by design.
+ * No production caller yet — staged for a later sub-project (notifications).
  */
 export function weekCyclePosition(startIso: string, nowIso: string): number {
   return ((programWeek(startIso, nowIso) - 1) % 4) + 1;

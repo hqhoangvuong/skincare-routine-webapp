@@ -3,54 +3,116 @@ import { Icon } from "../icons/icons";
 import { pickIcon } from "../icons/pickIcon";
 import { programWeek, todayIso } from "../shared/date";
 import { isStepDone, phaseCompletion } from "../shared/progress";
-import { resolveDay } from "../shared/schedule";
-import { isHairDay, type Category, type CompletedStep, type StepPhase, type StepTuple } from "../shared/types";
+import { getStoredDays, resolveDayForState, type ResolvedStep } from "../shared/content";
+import StepEditor from "./StepEditor";
+import type { AppState, Category, RoutineStep, StepPhase, StoredStep } from "../shared/types";
 
-type ToggleStep = (category: Category, dayIndex: number, phase: StepPhase, stepIndex: number) => void;
+type ToggleStep = (category: Category, dayIndex: number, stepId: string) => void;
+
+export type DayEdit = {
+  onAddStep: (phase: StepPhase) => void;
+  onUpdateStep: (phase: StepPhase, id: string, product: string, note: string) => void;
+  onRemoveStep: (phase: StepPhase, id: string) => void;
+  onSetVariant: (phase: StepPhase, id: string, variant: RoutineStep) => void;
+};
 
 function Steps({
   steps,
   category,
   dayIndex,
-  phase,
   completedSteps,
   nowIso,
   onToggleStep,
 }: {
-  steps: StepTuple[];
+  steps: ResolvedStep[];
   category: Category;
   dayIndex: number;
-  phase: StepPhase;
-  completedSteps: CompletedStep[];
+  completedSteps: AppState["completedSteps"];
   nowIso: string;
   onToggleStep: ToggleStep;
 }) {
   return (
     <ul className="steps">
-      {steps.map(([product, note], index) => {
-        const checked = isStepDone(completedSteps, category, dayIndex, phase, index, nowIso);
+      {steps.map((s) => {
+        const checked = isStepDone(completedSteps, category, dayIndex, s.id, nowIso);
         return (
-          <li key={`${product}-${index}`}>
+          <li key={s.id}>
             <label className="step-check">
               <input
                 type="checkbox"
-                aria-label={product}
+                aria-label={s.product}
                 checked={checked}
-                onChange={() => onToggleStep(category, dayIndex, phase, index)}
+                onChange={() => onToggleStep(category, dayIndex, s.id)}
               />
               <span className="step-check-box" aria-hidden="true" />
             </label>
             <div className="icon-badge">
-              <Icon icon={pickIcon(product)} />
+              <Icon icon={pickIcon(s.product)} />
             </div>
             <div>
-              <strong>{product}</strong>
-              {note ? <span className="note">{note}</span> : null}
+              <strong>{s.product}</strong>
+              {s.note ? <span className="note">{s.note}</span> : null}
             </div>
           </li>
         );
       })}
     </ul>
+  );
+}
+
+function PhaseBody({
+  phase,
+  resolvedSteps,
+  storedSteps,
+  category,
+  dayIndex,
+  completedSteps,
+  nowIso,
+  onToggleStep,
+  editing,
+  onEdit,
+}: {
+  phase: StepPhase;
+  resolvedSteps: ResolvedStep[];
+  storedSteps: StoredStep[];
+  category: Category;
+  dayIndex: number;
+  completedSteps: AppState["completedSteps"];
+  nowIso: string;
+  onToggleStep: ToggleStep;
+  editing: boolean;
+  onEdit?: DayEdit;
+}) {
+  if (editing && onEdit) {
+    return (
+      <>
+        <ul className="steps steps-edit">
+          {resolvedSteps.map((rs, i) => (
+            <StepEditor
+              key={rs.id}
+              display={rs}
+              raw={storedSteps[i].step}
+              onUpdateTuple={(p, n) => onEdit.onUpdateStep(phase, rs.id, p, n)}
+              onSetVariant={(v) => onEdit.onSetVariant(phase, rs.id, v)}
+              onRemove={() => onEdit.onRemoveStep(phase, rs.id)}
+            />
+          ))}
+        </ul>
+        <button type="button" className="add-step" onClick={() => onEdit.onAddStep(phase)}>
+          + Thêm bước
+        </button>
+      </>
+    );
+  }
+  return (
+    <Steps
+      steps={resolvedSteps}
+      category={category}
+      dayIndex={dayIndex}
+      completedSteps={completedSteps}
+      nowIso={nowIso}
+      onToggleStep={onToggleStep}
+    />
   );
 }
 
@@ -60,6 +122,7 @@ function Card({
   subtitle,
   done,
   total,
+  editing = false,
   children,
 }: {
   className?: string;
@@ -67,6 +130,7 @@ function Card({
   subtitle: string;
   done: number;
   total: number;
+  editing?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -77,7 +141,7 @@ function Card({
           <p className="card-title">{title}</p>
           <p className="card-sub">{subtitle}</p>
         </div>
-        <span className="card-progress">{`${done}/${total}`}</span>
+        {!editing && <span className="card-progress">{`${done}/${total}`}</span>}
       </div>
       {children}
     </div>
@@ -102,40 +166,50 @@ const PANEL_COPY: Record<
 
 export default function DayPanel({
   category,
+  state,
   dayIndex,
-  programStartDate,
-  completedSteps,
   onToggleStep,
   now = new Date(),
+  editing = false,
+  onEdit,
 }: {
   category: Category;
+  state: AppState;
   dayIndex: number;
-  programStartDate: string;
-  completedSteps: CompletedStep[];
   onToggleStep: ToggleStep;
   now?: Date;
+  editing?: boolean;
+  onEdit?: DayEdit;
 }) {
   const nowIso = todayIso(now);
-  const week = programWeek(programStartDate, nowIso);
-  const day = resolveDay(category, dayIndex, week);
+  const week = programWeek(state.programStartDate, nowIso);
+  const day = resolveDayForState(state, category, dayIndex, week);
+  const storedDay = getStoredDays(state, category)[dayIndex];
+  const completedSteps = state.completedSteps;
 
-  if (isHairDay(day)) {
-    const c = phaseCompletion(completedSteps, programStartDate, category, dayIndex, "steps", nowIso);
+  if (day.kind === "hair") {
+    const c = editing
+      ? { done: 0, total: 0 }
+      : phaseCompletion(state, category, dayIndex, "steps", nowIso);
+    const storedSteps = "steps" in storedDay ? storedDay.steps : [];
     return (
       <div className="panel active">
         <div className="badge-row">
           <span className="badge focus">{day.full}</span>
           <span className="badge">{day.type}</span>
         </div>
-        <Card title="Chăm tóc hôm nay" subtitle={day.type} done={c.done} total={c.total}>
-          <Steps
-            steps={day.steps}
+        <Card title="Chăm tóc hôm nay" subtitle={day.type} done={c.done} total={c.total} editing={editing}>
+          <PhaseBody
+            phase="steps"
+            resolvedSteps={day.steps}
+            storedSteps={storedSteps}
             category={category}
             dayIndex={dayIndex}
-            phase="steps"
             completedSteps={completedSteps}
             nowIso={nowIso}
             onToggleStep={onToggleStep}
+            editing={editing}
+            onEdit={onEdit}
           />
         </Card>
       </div>
@@ -143,8 +217,10 @@ export default function DayPanel({
   }
 
   const copy = category === "body" ? PANEL_COPY.body : PANEL_COPY.face;
-  const am = phaseCompletion(completedSteps, programStartDate, category, dayIndex, "am", nowIso);
-  const pm = phaseCompletion(completedSteps, programStartDate, category, dayIndex, "pm", nowIso);
+  const am = editing ? { done: 0, total: 0 } : phaseCompletion(state, category, dayIndex, "am", nowIso);
+  const pm = editing ? { done: 0, total: 0 } : phaseCompletion(state, category, dayIndex, "pm", nowIso);
+  const storedAm = "am" in storedDay ? storedDay.am : [];
+  const storedPm = "pm" in storedDay ? storedDay.pm : [];
   return (
     <div className="panel active">
       <div className="badge-row">
@@ -154,26 +230,46 @@ export default function DayPanel({
           {day.focus}
         </span>
       </div>
-      <Card className="am" title={copy.am.title} subtitle={copy.am.subtitle} done={am.done} total={am.total}>
-        <Steps
-          steps={day.am}
+      <Card
+        className="am"
+        title={copy.am.title}
+        subtitle={copy.am.subtitle}
+        done={am.done}
+        total={am.total}
+        editing={editing}
+      >
+        <PhaseBody
+          phase="am"
+          resolvedSteps={day.am}
+          storedSteps={storedAm}
           category={category}
           dayIndex={dayIndex}
-          phase="am"
           completedSteps={completedSteps}
           nowIso={nowIso}
           onToggleStep={onToggleStep}
+          editing={editing}
+          onEdit={onEdit}
         />
       </Card>
-      <Card className="pm" title={copy.pm.title} subtitle={copy.pm.subtitle} done={pm.done} total={pm.total}>
-        <Steps
-          steps={day.pm}
+      <Card
+        className="pm"
+        title={copy.pm.title}
+        subtitle={copy.pm.subtitle}
+        done={pm.done}
+        total={pm.total}
+        editing={editing}
+      >
+        <PhaseBody
+          phase="pm"
+          resolvedSteps={day.pm}
+          storedSteps={storedPm}
           category={category}
           dayIndex={dayIndex}
-          phase="pm"
           completedSteps={completedSteps}
           nowIso={nowIso}
           onToggleStep={onToggleStep}
+          editing={editing}
+          onEdit={onEdit}
         />
       </Card>
     </div>

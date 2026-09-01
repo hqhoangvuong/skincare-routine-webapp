@@ -1,48 +1,59 @@
 import { describe, expect, it } from "vitest";
-import { routine } from "./routine";
-import { resolveDay } from "./schedule";
-import { isHairDay } from "./types";
+import { faceDays } from "./routine";
+import { resolveStep } from "./schedule";
 
-function faceDay(dayIndex: number, week: number) {
-  const day = resolveDay("face", dayIndex, week);
-  if (isHairDay(day)) throw new Error("expected a face day");
-  return day;
-}
+const before: [string, string] = ["Serum Vitamin C — Cocoon Nghệ C22", "weeks 1-2"];
+const from: [string, string] = ["Serum Niacinamide 15% — Cocoon", "week 3+"];
+const threshold = { kind: "threshold" as const, untilWeek: 2, before, from };
 
-describe("resolveDay — Wednesday AM serum", () => {
-  it("is Vitamin C in weeks 1 and 2", () => {
-    for (const week of [1, 2]) {
-      expect(faceDay(2, week).am[2][0]).toBe("Serum Vitamin C — Cocoon Nghệ C22");
-      expect(faceDay(2, week).am[2][1]).toContain("Tuần 1–2");
-    }
+const odd: [string, string] = ["Mặt nạ Histolab Peppermint", "odd"];
+const even: [string, string] = ["Mặt nạ Histolab Natural White", "even"];
+const cycle2 = { kind: "cycle" as const, length: 2 as const, weeks: [odd, even] };
+const cycle4weeks: [string, string][] = [["w1", ""], ["w2", ""], ["w3", ""], ["w4", ""]];
+const cycle4 = { kind: "cycle" as const, length: 4 as const, weeks: cycle4weeks };
+
+describe("resolveStep", () => {
+  it("returns a plain tuple by reference, any week", () => {
+    const plain: [string, string] = ["Toner Cocoon Sen", ""];
+    expect(resolveStep(plain, 1)).toBe(plain);
+    expect(resolveStep(plain, 9)).toBe(plain);
   });
-  it("is Niacinamide from week 3 on", () => {
-    for (const week of [3, 4, 7]) {
-      expect(faceDay(2, week).am[2][0]).toBe("Serum Niacinamide 15% — Cocoon");
-    }
+
+  it("threshold: before through untilWeek, from after", () => {
+    expect(resolveStep(threshold, 1)).toBe(before);
+    expect(resolveStep(threshold, 2)).toBe(before);
+    expect(resolveStep(threshold, 3)).toBe(from);
+    expect(resolveStep(threshold, 12)).toBe(from);
+  });
+
+  it("cycle length 2: weeks 1,3,5 -> weeks[0]; weeks 2,4 -> weeks[1]", () => {
+    expect(resolveStep(cycle2, 1)).toBe(odd);
+    expect(resolveStep(cycle2, 2)).toBe(even);
+    expect(resolveStep(cycle2, 3)).toBe(odd);
+    expect(resolveStep(cycle2, 4)).toBe(even);
+    expect(resolveStep(cycle2, 5)).toBe(odd);
+  });
+
+  it("cycle length 4: weeks 1..5 -> weeks[0,1,2,3,0]", () => {
+    expect(resolveStep(cycle4, 1)).toBe(cycle4.weeks[0]);
+    expect(resolveStep(cycle4, 4)).toBe(cycle4.weeks[3]);
+    expect(resolveStep(cycle4, 5)).toBe(cycle4.weeks[0]);
   });
 });
 
-describe("resolveDay — Sunday PM mask", () => {
-  it("is Peppermint on odd cycle weeks (1, 3, 5, 7)", () => {
-    for (const week of [1, 3, 5, 7]) {
-      expect(faceDay(6, week).pm[3][0]).toBe("Mặt nạ Histolab Peppermint");
-    }
+describe("the two authored routine conditionals", () => {
+  it("Wednesday AM serum: Vitamin C weeks 1-2, Niacinamide week 3+", () => {
+    const step = faceDays[2].am[2];
+    expect(resolveStep(step, 1)[0]).toBe("Serum Vitamin C — Cocoon Nghệ C22");
+    expect(resolveStep(step, 2)[1]).toContain("Tuần 1–2");
+    expect(resolveStep(step, 3)[0]).toBe("Serum Niacinamide 15% — Cocoon");
   });
-  it("is Natural White on even cycle weeks (2, 4, 6, 8)", () => {
-    for (const week of [2, 4, 6, 8]) {
-      expect(faceDay(6, week).pm[3][0]).toBe("Mặt nạ Histolab Natural White");
-    }
-  });
-});
 
-describe("resolveDay — everything else is untouched", () => {
-  it("returns the exact routine object for a non-conditional face day", () => {
-    expect(resolveDay("face", 0, 1)).toBe(routine.face.days[0]);
-    expect(resolveDay("face", 2, 5)).toBe(routine.face.days[2]); // week 3+ Wednesday = steady state
-  });
-  it("never rewrites hair or body days", () => {
-    expect(resolveDay("hair", 2, 1)).toBe(routine.hair.days[2]);
-    expect(resolveDay("body", 6, 2)).toBe(routine.body.days[6]);
+  it("Sunday PM mask: Peppermint weeks 1 & 3, Natural White weeks 2 & 4", () => {
+    const step = faceDays[6].pm[3];
+    expect(resolveStep(step, 1)[0]).toBe("Mặt nạ Histolab Peppermint");
+    expect(resolveStep(step, 3)[0]).toBe("Mặt nạ Histolab Peppermint");
+    expect(resolveStep(step, 2)[0]).toBe("Mặt nạ Histolab Natural White");
+    expect(resolveStep(step, 4)[0]).toBe("Mặt nạ Histolab Natural White");
   });
 });

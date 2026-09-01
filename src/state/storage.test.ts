@@ -38,7 +38,7 @@ describe("mirror", () => {
     expect(readMirror()).toBeNull();
   });
 
-  it("upgrades a stored v1 blob to v2 on read", () => {
+  it("upgrades a stored v1 blob to v3 on read", () => {
     const v1 = {
       version: 1,
       updatedAt: "2026-08-30T10:00:00.000Z",
@@ -48,7 +48,7 @@ describe("mirror", () => {
     localStorage.setItem(MIRROR_KEY, JSON.stringify(v1));
     const read = readMirror();
     expect(read).not.toBeNull();
-    expect(read?.version).toBe(2);
+    expect(read?.version).toBe(3);
     expect(read?.completedSteps).toEqual([]);
     expect(read?.ui.activeDayByCategory.hair).toBe(2);
   });
@@ -88,7 +88,7 @@ describe("reconcile", () => {
   it("falls back to a default when neither exists", () => {
     const result = reconcile(null, null);
     expect(result.source).toBe("default");
-    expect(result.state.version).toBe(2);
+    expect(result.state.version).toBe(3);
     expect(result.state.ui.activeCategory).toBe("face");
   });
 

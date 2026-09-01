@@ -1,22 +1,20 @@
 import { programWeek, todayIso, weekdayIndex } from "../shared/date";
 import { dayCompletion } from "../shared/progress";
-import type { Category, CompletedStep } from "../shared/types";
+import type { AppState, Category } from "../shared/types";
 
 const DAY_SHORT = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 
 export default function WeekProgress({
   category,
-  programStartDate,
-  completedSteps,
+  state,
   now = new Date(),
 }: {
   category: Category;
-  programStartDate: string;
-  completedSteps: CompletedStep[];
+  state: AppState;
   now?: Date;
 }) {
   const nowIso = todayIso(now);
-  const week = programWeek(programStartDate, nowIso);
+  const week = programWeek(state.programStartDate, nowIso);
   const today = weekdayIndex(now);
 
   return (
@@ -24,7 +22,7 @@ export default function WeekProgress({
       <span className="week-progress-label">Tuần {week}</span>
       <ol className="week-progress-track">
         {DAY_SHORT.map((short, index) => {
-          const { done, total } = dayCompletion(completedSteps, programStartDate, category, index, nowIso);
+          const { done, total } = dayCompletion(state, category, index, nowIso);
           const fill =
             total > 0 && done >= total ? "is-full" : done > 0 ? "is-partial" : "is-empty";
           return (

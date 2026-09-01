@@ -2,9 +2,10 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppStateProvider, useAppState } from "./AppStateProvider";
+import { stepId } from "../shared/content";
 
 function Probe() {
-  const { state, status, setActiveCategory, setActiveDay, setProgramStartDate, toggleStep } =
+  const { state, status, setActiveCategory, setActiveDay, setProgramStartDate, toggleStep, editContent } =
     useAppState();
   return (
     <div>
@@ -13,10 +14,12 @@ function Probe() {
       <span data-testid="day">{state.ui.activeDayByCategory[state.ui.activeCategory]}</span>
       <span data-testid="start">{state.programStartDate}</span>
       <span data-testid="completed">{state.completedSteps.length}</span>
+      <span data-testid="seq">{state.stepSeq ?? 0}</span>
       <button onClick={() => setActiveCategory("hair")}>to hair</button>
       <button onClick={() => setActiveDay("hair", 4)}>hair day 4</button>
       <button onClick={() => setProgramStartDate("2026-07-01")}>set start</button>
-      <button onClick={() => toggleStep("face", 2, "am", 0)}>toggle w-am-0</button>
+      <button onClick={() => toggleStep("face", 2, stepId("face", 2, "am", 2))}>toggle w-am-0</button>
+      <button onClick={() => editContent((s) => ({ ...s, stepSeq: (s.stepSeq ?? 0) + 1 }))}>bump seq</button>
     </div>
   );
 }
@@ -115,6 +118,18 @@ describe("AppStateProvider", () => {
     expect(screen.getByTestId("completed")).toHaveTextContent("1");
     await userEvent.click(screen.getByText("toggle w-am-0"));
     expect(screen.getByTestId("completed")).toHaveTextContent("0");
+  });
+
+  it("writes through editContent", async () => {
+    render(
+      <AppStateProvider>
+        <Probe />
+      </AppStateProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId("category")).toHaveTextContent("face"));
+    expect(screen.getByTestId("seq")).toHaveTextContent("0");
+    await userEvent.click(screen.getByText("bump seq"));
+    expect(screen.getByTestId("seq")).toHaveTextContent("1");
   });
 
   it("throws a useful error when used outside the provider", () => {

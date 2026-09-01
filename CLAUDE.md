@@ -61,8 +61,11 @@ src/
     storage.ts                localStorage mirror + reconcile() — pure, no React
   icons/                      icons.tsx (ICONS map) and pickIcon.ts (keyword matching)
   shared/                     IMPORTED BY BOTH THE FRONTEND AND THE WORKER — see below
-    types.ts                  AppState, Category, DayData, isAppState() guard
+    types.ts                  AppState, Category, DayData, RoutineStep, isAppState()/migrate()
     routine.ts                the shipped routine content (the ported data)
+    content.ts                overrides read/mutate seam (getCategoryData, resolveDayForState, helpers)
+    schedule.ts               resolveStep(step, week) — collapses a RoutineStep to a StepTuple
+    progress.ts               check-off math over completedSteps
     date.ts                   timezone-pinned date helpers
     defaults.ts                makeDefaultState()
 worker/
@@ -83,11 +86,23 @@ worker/
   To change what's shown on a given day, edit the relevant entry in `faceDays`/`hairDays`/`bodyDays` in
   `routine.ts` — no component changes needed. `DayPanel.tsx` holds the per-category copy (card titles,
   subtitles, and the face-only "Trọng tâm tối nay: " badge prefix) in one `PANEL_COPY` lookup.
-- **Week-conditional steps live in `src/shared/schedule.ts`, not in `routine.ts`.** `routine.ts` holds the
-  steady-state (week 3+) form; `resolveDay(category, dayIndex, week)` swaps in the weeks-1–2
-  Wednesday-AM Vitamin C step and the even-week Sunday-PM "Natural White" mask — `week` is the 1-based
-  program week from `programWeek()`. `programWeek` / `weekCyclePosition` (`src/shared/date.ts`) are
-  calendar Mon–Sun weeks from `programStartDate`.
+- **Per-user edits live in `AppState.overrides`, resolved by `src/shared/content.ts`.** `routine.ts` is
+  the shipped default; the first edit to a category (via the in-app editor) copies that category's
+  `{ products, days }` into `overrides[category]` (copy-on-write, whole-category), and every later edit
+  mutates the clone. `getCategoryData(state, category)` and `resolveDayForState(state, category, dayIndex,
+  week)` are the single read seam — `CategorySection`, `progress.ts`, and the editor all go through them,
+  never `routine[category]` directly. `content.ts` also holds the eight pure mutation helpers
+  (`addProduct`, `renameProduct`, `removeProduct`, `addStep`, `updateStepTuple`, `removeStep`,
+  `setStepVariant`, `resetCategory`) the editor calls via `useAppState().editContent(mutate)`.
+- **A step is a `RoutineStep`: a plain `[product, note]` tuple, or a `ConditionalStep`.** Two conditional
+  kinds: `threshold` (`{ kind, untilWeek, before, from }` — `before` for program-weeks `1..untilWeek`,
+  `from` after) and `cycle` (`{ kind, length: 2|4, weeks }` — indexed by `(week-1) % length`).
+  `resolveStep(step, week)` in `src/shared/schedule.ts` collapses a `RoutineStep` to a `StepTuple`;
+  `resolveDayForState` in `content.ts` maps a whole day. The two week-conditional face steps
+  (Wednesday-AM Vitamin C→Niacinamide, Sunday-PM 2-week mask rotation) are authored directly as
+  conditionals in `routine.ts` — `schedule.ts` no longer hardcodes them and no longer imports
+  `routine.ts`. `week` is the 1-based program week from `programWeek()`; `programWeek` /
+  `weekCyclePosition` (`src/shared/date.ts`) are calendar Mon–Sun weeks from `programStartDate`.
   `src/shared/progress.ts` has the check-off math (`toggleCompletedStep`, `isStepDone`, `phaseCompletion`,
   `dayCompletion`).
 - **Theming via scoped CSS variables**, unchanged from the original: colors are defined once on `:root`
@@ -133,15 +148,19 @@ and flows through one path:
   by the frontend's `localStorage` mirror parse and by the Worker's `PUT` body check. It lives beside the
   type it guards specifically so the two deployables can't drift into accepting different shapes; if you
   ever find yourself writing a second shape check for `AppState`, import this one instead.
-- `completedSteps` on `AppState` is a flat dated log of checked steps (`{ date, category, phase,
-  stepIndex }`), written via `useAppState().toggleStep(...)` and carried on the same debounced `PUT`. The
-  visible checkboxes are the entries whose `date` falls in the current Mon–Sun week; older entries stay in
-  the log for a later stats view. Checks are keyed by calendar date + step index, not by resolved product,
-  so editing `programStartDate` across the week-2/3 boundary can leave a checked slot showing the other
-  week's product — the accepted positional-identity trade-off. `AppState` is `version: 2`; `migrate()` in `src/shared/types.ts`
-  upgrades a v1 blob (adds `completedSteps: []`) and is called on every untrusted read — the
-  `localStorage` mirror, `fetchRemote`, and the Worker's `GET` (which also persists the upgrade). Add
-  future migrations there; keep `isV1State` a frozen snapshot.
+- `completedSteps` on `AppState` is a flat dated log of checked steps (`{ date, category, stepId }`),
+  written via `useAppState().toggleStep(category, dayIndex, stepId)` and carried on the same debounced
+  `PUT`. Every step carries a stable id: default steps get a derived
+  `${category}.${dayIndex}.${phase}.${index}` (`stepId()` in `content.ts`); an override freezes those ids
+  at copy-on-write time and new steps get `${category}.${dayIndex}.${phase}.new-${n}` from the monotonic
+  `AppState.stepSeq`. Because a conditional step keeps one id across weeks, a check-off survives the
+  week-2→3 product swap (the old positional-identity trade-off is gone). The visible checkboxes are the
+  entries whose `date` falls in the current Mon–Sun week; older entries stay in the log for a later stats
+  view. `AppState` is `version: 3`; `migrate()` in `src/shared/types.ts` chains v1→v3 (adds
+  `completedSteps: []`) and v2→v3 (remapping each old `{ phase, stepIndex }` to
+  `${category}.${weekdayIndexOfIso(date)}.${phase}.${stepIndex}`), and is called on every untrusted read —
+  the `localStorage` mirror, `fetchRemote`, and the Worker's `GET` (which also persists the upgrade). Add
+  future migrations as new arms; keep `isV1State` and `isV2State` frozen snapshots.
 
 ### The Worker
 
@@ -230,10 +249,11 @@ build validates them, so if either drifts from reality the failure is silent and
   is a non-simple header, so even the `PUT` preflight is rejected), the UI shows "Ngoại tuyến — đang
   hiển thị dữ liệu đã lưu" indefinitely, and nothing on screen points at the origin as the cause.
 
-A push touching `src/shared/**` fires both deploy workflows at once and they race; whichever lands second
-leaves a brief window where an old client GETs a v2 blob it doesn't expect (→ transient "Ngoại tuyến",
-self-heals on reload). No data is lost: the old client's repair-`PUT` of a v1 body is 400'd by
-`isAppState()` before it can clobber the migrated blob, and the local mirror wins the next reconcile.
+A push touching `src/shared/**` that bumps the `AppState` version fires both deploy workflows at once and
+they race; whichever lands second leaves a brief window where an old client GETs a newer blob it doesn't
+expect (→ transient "Ngoại tuyến", self-heals on reload). No data is lost: the old client's repair-`PUT`
+of a stale-version body is 400'd by `isAppState()` before it can clobber the migrated blob, and the local
+mirror wins the next reconcile.
 
 The four GitHub Actions repo secrets are set: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`,
 `WRITE_TOKEN` (also stored as a Worker secret via `wrangler secret put`), and `VITE_WORKER_URL`.
@@ -249,11 +269,17 @@ sense once the site is live; don't treat leaking it as more than a minor issue.
 
 This is sub-project 1 of a five-part plan, and it is deployed and verified live (2026-09-01).
 Progress tracking (sub-project 2) now exists: per-step checkboxes, the `WeekProgress` strip above the day
-tabs, and the `schedule.ts` resolver for the week‑1/2‑vs‑week‑3+ Niacinamide rule and the 4-week mask
+tabs, and the `schedule.ts` resolver for the week‑1/2‑vs‑week‑3+ Niacinamide rule and the 2-week mask
 rotation — with `completedSteps` retained as a full dated log. Still deferred within it: streaks and a
-multi-week history view over that log. Deliberately not built yet: a content editor, a PWA
-manifest/service worker, and push notifications/reminders. Don't add pieces of these speculatively — the
-seams are already in place for them:
+multi-week history view over that log.
+The in-app content editor (sub-project 3) now exists: `AppState.overrides` + `src/shared/content.ts` as
+the read/mutate seam + `RoutineStep` variants in `types.ts`, driven by an inline per-category pencil
+toggle in `CategorySection` (edit mode hides the week strip and checkboxes, shows editable `Gallery` rows
+and `StepEditor`/`VariantEditor` step rows and a "Đặt lại theo mặc định" reset). Still deferred within it:
+reordering products/steps, editing day metadata (`short`/`full`/`focus`/`type`), and linking a gallery
+entry to the steps that name it. Deliberately not built yet: a PWA manifest/service worker, and push
+notifications/reminders. Don't add pieces of these speculatively — the seams are already in place for
+them:
 
 - `src/shared/` is the shared-module boundary those sub-projects are expected to extend (e.g. a
   `completedSteps` shape would live in `types.ts` beside `AppState`).

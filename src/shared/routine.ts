@@ -10,7 +10,9 @@ export const faceDays: FaceOrBodyDay[] = [
    am:[["Rửa mặt nhẹ bằng nước ấm",""],["Toner Cocoon Sen",""],["Serum Vitamin C — Cocoon Nghệ C22","Kết hợp tốt cùng Azelaic acid tối nay"],["Kem dưỡng Estee Lauder Revitalizing Supreme",""],["Kem chống nắng SPF 30–50 PA+++",""]],
    pm:[["Tẩy trang Bioderma",""],["Sữa rửa mặt Dermacos",""],["Toner Cocoon Sen","Không dùng acid khác đêm nay"],["Azelaic acid 15% — Azecont","Hỗ trợ mờ thâm, dịu mụn ẩn"],["Kem đêm Estee Lauder Revitalizing Supreme + Night",""]]},
   {short:"T4",full:"Thứ Tư",focus:"Tẩy da chết + Mặt nạ",
-   am:[["Rửa mặt nhẹ bằng nước ấm",""],["Toner Cocoon Sen",""],["Serum Niacinamide 15% — Cocoon","Hỗ trợ hàng rào da trước đêm tẩy da chết"],["Kem dưỡng Estee Lauder Revitalizing Supreme",""],["Kem chống nắng SPF 30–50 PA+++",""]],
+   am:[["Rửa mặt nhẹ bằng nước ấm",""],["Toner Cocoon Sen",""],{kind:"threshold",untilWeek:2,
+ before:["Serum Vitamin C — Cocoon Nghệ C22","Giai đoạn làm quen (Tuần 1–2) — Thứ 4 vẫn dùng Vitamin C, chưa chuyển sang Niacinamide"],
+ from:["Serum Niacinamide 15% — Cocoon","Hỗ trợ hàng rào da trước đêm tẩy da chết"]},["Kem dưỡng Estee Lauder Revitalizing Supreme",""],["Kem chống nắng SPF 30–50 PA+++",""]],
    pm:[["Tẩy trang Bioderma",""],["Sữa rửa mặt Dermacos",""],["Tẩy da chết Civasan 30g","Mát-xa nhẹ 1 phút, không chà mạnh, rồi rửa sạch"],["Toner Cocoon Sen",""],["Mặt nạ Wonjin phục hồi 8 CICA relaxing","Đắp 15–20 phút"],["Winter Melon Gel Cream","Thay cho kem đêm tối nay — kiềm dầu sau tẩy da chết, tránh bí da"]]},
   {short:"T5",full:"Thứ Năm",focus:"Đêm nghỉ",
    am:[["Rửa mặt nhẹ bằng nước ấm",""],["Toner Cocoon Sen",""],["Serum Vitamin C — Cocoon Nghệ C22","Đêm nay da nghỉ ngơi — tận dụng chống oxy hoá ban ngày"],["Kem dưỡng Estee Lauder Revitalizing Supreme",""],["Kem chống nắng SPF 30–50 PA+++",""]],
@@ -23,7 +25,9 @@ export const faceDays: FaceOrBodyDay[] = [
    pm:[["Tẩy trang Bioderma",""],["Sữa rửa mặt Dermacos",""],["Toner Cocoon Sen",""],["Azelaic acid 15% — Azecont",""],["Serum Estee Lauder Advanced Night Repair",""],["Kem đêm Estee Lauder Revitalizing Supreme + Night",""]]},
   {short:"CN",full:"Chủ Nhật",focus:"Mặt nạ luân phiên",
    am:[["Rửa mặt nhẹ bằng nước ấm",""],["Toner Cocoon Sen",""],["Serum Vitamin C — Cocoon Nghệ C22","Ngày mặt nạ nhẹ nhàng — bổ sung sáng da"],["Kem dưỡng Estee Lauder Revitalizing Supreme",""],["Kem chống nắng SPF 30–50 PA+++",""]],
-   pm:[["Tẩy trang Bioderma",""],["Sữa rửa mặt Dermacos",""],["Toner Cocoon Sen",""],["Mặt nạ Histolab Peppermint","Mặt nạ tuần lẻ trong chu kỳ 4 tuần"],["Serum Centella Skin1004",""],["Winter Melon Gel Cream","Thay cho kem đêm tối nay — khép tuần nhẹ nhàng, không gây bí da"]]}
+   pm:[["Tẩy trang Bioderma",""],["Sữa rửa mặt Dermacos",""],["Toner Cocoon Sen",""],{kind:"cycle",length:2,
+ weeks:[["Mặt nạ Histolab Peppermint","Mặt nạ tuần lẻ trong chu kỳ 4 tuần"],
+        ["Mặt nạ Histolab Natural White","Mặt nạ tuần chẵn trong chu kỳ 4 tuần"]]},["Serum Centella Skin1004",""],["Winter Melon Gel Cream","Thay cho kem đêm tối nay — khép tuần nhẹ nhàng, không gây bí da"]]}
 ];
 
 export const hairProducts: string[] = ["Tẩy da chết da đầu Cocoon bồ kết","Bơ ủ tóc Mielle","Dầu Mielle Rosemary Mint","Dầu hoa hồng ủ chân tóc","Dầu gội Loreal Serioxyl","Dầu xả Loreal Absolut Repair","Dầu xả Dove Derma Scalp","Serum Dove Hairfall","Tinh dầu bưởi Cocoon","Dầu dưỡng Kerastase Elixir"];

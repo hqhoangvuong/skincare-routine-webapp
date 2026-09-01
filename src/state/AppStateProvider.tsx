@@ -2,7 +2,7 @@ import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { useRemoteState } from "./useRemoteState";
 import { toggleCompletedStep } from "../shared/progress";
 import { todayIso, weekdayDateIso } from "../shared/date";
-import type { AppState, Category, StepPhase, SyncStatus } from "../shared/types";
+import type { AppState, Category, SyncStatus } from "../shared/types";
 
 type AppStateContextValue = {
   state: AppState;
@@ -11,7 +11,8 @@ type AppStateContextValue = {
   setActiveCategory: (category: Category) => void;
   setActiveDay: (category: Category, day: number) => void;
   setProgramStartDate: (iso: string) => void;
-  toggleStep: (category: Category, dayIndex: number, phase: StepPhase, stepIndex: number) => void;
+  toggleStep: (category: Category, dayIndex: number, stepId: string) => void;
+  editContent: (mutate: (state: AppState) => AppState) => void;
 };
 
 const AppStateContext = createContext<AppStateContextValue | null>(null);
@@ -36,22 +37,22 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         })),
       setProgramStartDate: (iso) => {
         // A cleared <input type="date"> posts "" — ignore it rather than write a
-        // blank programStartDate that would make programWeek()/resolveDay() clamp.
+        // blank programStartDate that would make programWeek()/resolveDayForState() clamp.
         if (!iso) return;
         update((prev) => ({ ...prev, programStartDate: iso }));
       },
       // Stamps the date from the real todayIso(); DayPanel/WeekProgress accept a
       // `now` override for tests, but this seam is intentionally one-sided —
       // production check-offs are always "real now".
-      toggleStep: (category, dayIndex, phase, stepIndex) =>
+      toggleStep: (category, dayIndex, stepId) =>
         update((prev) =>
           toggleCompletedStep(prev, {
             date: weekdayDateIso(dayIndex, todayIso()),
             category,
-            phase,
-            stepIndex,
+            stepId,
           }),
         ),
+      editContent: (mutate) => update(mutate),
     }),
     [state, status, loaded, update],
   );
