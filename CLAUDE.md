@@ -83,6 +83,12 @@ worker/
   To change what's shown on a given day, edit the relevant entry in `faceDays`/`hairDays`/`bodyDays` in
   `routine.ts` — no component changes needed. `DayPanel.tsx` holds the per-category copy (card titles,
   subtitles, and the face-only "Trọng tâm tối nay: " badge prefix) in one `PANEL_COPY` lookup.
+- **Week-conditional steps live in `src/shared/schedule.ts`, not in `routine.ts`.** `routine.ts` holds the
+  steady-state (week 3+) form; `resolveDay(category, dayIndex, programWeek)` swaps in the weeks-1–2
+  Wednesday-AM Vitamin C step and the even-week Sunday-PM "Natural White" mask. `programWeek` /
+  `weekCyclePosition` (`src/shared/date.ts`) are calendar Mon–Sun weeks from `programStartDate`.
+  `src/shared/progress.ts` has the check-off math (`toggleCompletedStep`, `isStepDone`, `phaseCompletion`,
+  `dayCompletion`).
 - **Theming via scoped CSS variables**, unchanged from the original: colors are defined once on `:root`
   (the face/rose palette) and overridden by `.theme-yellow` (hair) and `.theme-almond` (body) classes on
   the `<section class="category">` element. Add a new palette by defining a new `.theme-*` block that
@@ -126,6 +132,13 @@ and flows through one path:
   by the frontend's `localStorage` mirror parse and by the Worker's `PUT` body check. It lives beside the
   type it guards specifically so the two deployables can't drift into accepting different shapes; if you
   ever find yourself writing a second shape check for `AppState`, import this one instead.
+- `completedSteps` on `AppState` is a flat dated log of checked steps (`{ date, category, phase,
+  stepIndex }`), written via `useAppState().toggleStep(...)` and carried on the same debounced `PUT`. The
+  visible checkboxes are the entries whose `date` falls in the current Mon–Sun week; older entries stay in
+  the log for a later stats view. `AppState` is `version: 2`; `migrate()` in `src/shared/types.ts`
+  upgrades a v1 blob (adds `completedSteps: []`) and is called on every untrusted read — the
+  `localStorage` mirror, `fetchRemote`, and the Worker's `GET` (which also persists the upgrade). Add
+  future migrations there; keep `isV1State` a frozen snapshot.
 
 ### The Worker
 
@@ -227,17 +240,18 @@ sense once the site is live; don't treat leaking it as more than a minor issue.
 ## Out of scope here, and where later work attaches
 
 This is sub-project 1 of a five-part plan, and it is deployed and verified live (2026-09-01).
-Deliberately not built yet: progress tracking (checking off
-individual steps, a `completedSteps` history that would also resolve the week‑1/2‑vs‑week‑3+ Niacinamide
-rule the face note box currently just describes in prose), a content editor, a PWA manifest/service worker,
-and push notifications/reminders. Don't add pieces of these speculatively — the seams are already in place
-for them:
+Progress tracking (sub-project 2) now exists: per-step checkboxes, the `WeekProgress` strip above the day
+tabs, and the `schedule.ts` resolver for the week‑1/2‑vs‑week‑3+ Niacinamide rule and the 4-week mask
+rotation — with `completedSteps` retained as a full dated log. Still deferred within it: streaks and a
+multi-week history view over that log. Deliberately not built yet: a content editor, a PWA
+manifest/service worker, and push notifications/reminders. Don't add pieces of these speculatively — the
+seams are already in place for them:
 
 - `src/shared/` is the shared-module boundary those sub-projects are expected to extend (e.g. a
   `completedSteps` shape would live in `types.ts` beside `AppState`).
 - `BASE_PATH` is already plumbed through `vite.config.ts` and the Pages workflow for a future manifest
   `start_url` and service worker scope to reuse.
-- `weekdayIndex()` in `date.ts` exists for a later sub-project to build on even though nothing in this app
-  calls it yet (the UI restores the persisted tab, not "today's" tab).
+- `weekdayIndex()` in `date.ts` is used by `WeekProgress` to mark today's column in the week strip; the
+  day tabs still restore the persisted tab, not "today's" tab.
 - `SettingsPanel` is the intended home for a future reminders toggle and test-send button — it's kept
   deliberately small (one date field) for exactly that reason.
