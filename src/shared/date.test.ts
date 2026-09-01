@@ -28,3 +28,68 @@ describe("weekdayIndex", () => {
     expect(weekdayIndex(new Date("2026-08-30T17:30:00Z"))).toBe(0);
   });
 });
+
+import {
+  addDaysIso,
+  mondayIsoOf,
+  programWeek,
+  weekCyclePosition,
+  weekdayDateIso,
+  weekdayIndexOfIso,
+} from "./date";
+
+describe("weekdayIndexOfIso", () => {
+  it("returns 0 for a Monday and 6 for a Sunday", () => {
+    expect(weekdayIndexOfIso("2026-08-31")).toBe(0); // Monday
+    expect(weekdayIndexOfIso("2026-09-06")).toBe(6); // Sunday
+  });
+});
+
+describe("addDaysIso", () => {
+  it("adds and subtracts across month boundaries", () => {
+    expect(addDaysIso("2026-08-31", 1)).toBe("2026-09-01");
+    expect(addDaysIso("2026-09-01", -1)).toBe("2026-08-31");
+    expect(addDaysIso("2026-12-31", 1)).toBe("2027-01-01");
+  });
+});
+
+describe("mondayIsoOf", () => {
+  it("snaps any weekday back to its Monday", () => {
+    expect(mondayIsoOf("2026-09-02")).toBe("2026-08-31"); // Wed -> Mon
+    expect(mondayIsoOf("2026-08-31")).toBe("2026-08-31"); // Mon -> itself
+    expect(mondayIsoOf("2026-09-06")).toBe("2026-08-31"); // Sun -> Mon
+  });
+});
+
+describe("programWeek", () => {
+  it("is week 1 for any day in the start date's Mon-Sun week", () => {
+    // 2026-08-26 is a Wednesday; its week is 2026-08-24..30
+    expect(programWeek("2026-08-26", "2026-08-24")).toBe(1);
+    expect(programWeek("2026-08-26", "2026-08-30")).toBe(1);
+  });
+  it("flips on Mondays", () => {
+    expect(programWeek("2026-08-26", "2026-08-31")).toBe(2);
+    expect(programWeek("2026-08-26", "2026-09-14")).toBe(4);
+  });
+  it("clamps a now before the start date to 1", () => {
+    expect(programWeek("2026-08-26", "2026-08-01")).toBe(1);
+  });
+});
+
+describe("weekCyclePosition", () => {
+  it("cycles 1,2,3,4,1,2,... by program week", () => {
+    const start = "2026-08-24"; // a Monday
+    expect(weekCyclePosition(start, "2026-08-24")).toBe(1);
+    expect(weekCyclePosition(start, "2026-08-31")).toBe(2);
+    expect(weekCyclePosition(start, "2026-09-14")).toBe(4);
+    expect(weekCyclePosition(start, "2026-09-21")).toBe(1);
+  });
+});
+
+describe("weekdayDateIso", () => {
+  it("returns the date of the given weekday within now's week", () => {
+    expect(weekdayDateIso(0, "2026-09-02")).toBe("2026-08-31"); // Monday of that week
+    expect(weekdayDateIso(2, "2026-09-02")).toBe("2026-09-02"); // Wednesday
+    expect(weekdayDateIso(6, "2026-09-02")).toBe("2026-09-06"); // Sunday
+  });
+});
