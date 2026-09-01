@@ -22,14 +22,16 @@ routine content from memory — if it needs to change, it changes because she sa
 npm install
 npm run dev            # Vite dev server (frontend only, http://localhost:5173)
 npm run worker:dev      # wrangler dev, for the Worker API locally
-npm run test            # vitest run — frontend + worker tests, one suite
+npm run test            # constraint gate, then vitest run — frontend + worker tests, one suite
+npm run lint:constraints # the no-cast/no-`!`/no-`any` grep gate on its own
 npm run test:watch      # vitest, watch mode
 npm run typecheck       # tsc --noEmit on both tsconfig.json and tsconfig.worker.json
 npm run build           # typecheck, then vite build (fails the build on any TS error)
 npm run worker:deploy   # wrangler deploy
 ```
 
-There is no lint step. `strict: true` plus the test suite are the safety net.
+There is no general lint step. `strict: true`, the test suite, and the one narrow gate below
+(`lint:constraints`, which `npm run test` runs first) are the whole safety net.
 
 With no `.env`/`.env.local` set (copy `.env.example` to start), `npm run dev` runs the frontend in
 **local-only mode**: no `VITE_WORKER_URL` means the app never talks to a Worker, state lives only in
@@ -165,6 +167,13 @@ including tests. Where external data needs narrowing (a `JSON.parse` result, a f
 or reuse a type predicate (`isAppState`, `isHairDay`) instead of asserting past the compiler. If a cast
 looks unavoidable, that's usually a sign the type at the boundary is wrong, not that the constraint should
 bend — check `src/shared/types.ts` first for whether the shape already has a guard.
+
+This is enforced, not just documented: `npm run lint:constraints` (`scripts/check-constraints.mjs`)
+greps `src/` and `worker/` for `as` casts, non-null assertions, `@ts-ignore`/`@ts-nocheck` and `any`, and
+exits non-zero on a hit. `npm run test` runs it first, so both CI workflows run it too. It ignores
+comments (prose says "formats as YYYY-MM-DD" without meaning a cast) and allows exactly one line: the
+`as Record<string, unknown>` inside `isAppState`. If you add a second legitimate exception, add it to
+`ALLOWED_EXACT` in the script with a comment saying why — don't widen the patterns.
 
 ## Testing
 

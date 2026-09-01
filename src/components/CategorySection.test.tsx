@@ -11,10 +11,11 @@ describe("CategorySection", () => {
     // đa năng Nuxe Huile Multi" and "Kem dưỡng ẩm Vaseline Gluta Hya Night" are
     // both today's routine and gallery items), so an unscoped screen.getByText
     // would find two matches and fail as ambiguous rather than as a real bug.
-    const { container } = render(
-      <CategorySection category="body" activeDay={0} onSelectDay={() => {}} />,
-    );
-    const gallery = container.querySelector(".gallery") as HTMLElement;
+    render(<CategorySection category="body" activeDay={0} onSelectDay={() => {}} />);
+    // getByTestId returns an HTMLElement, so `within` needs no cast (the
+    // no-cast rule in CLAUDE.md covers tests too); Gallery carries the
+    // matching data-testid.
+    const gallery = screen.getByTestId("gallery");
     for (const product of routine.body.products) {
       expect(within(gallery).getByText(product)).toBeInTheDocument();
     }
