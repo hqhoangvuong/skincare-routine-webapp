@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { readMirror, reconcile, writeMirror } from "./storage";
 import { makeDefaultState } from "../shared/defaults";
-import { isAppState, type AppState, type SyncStatus } from "../shared/types";
+import { migrate, type AppState, type SyncStatus } from "../shared/types";
 
 const DEBOUNCE_MS = 500;
 
@@ -16,8 +16,9 @@ function workerUrl(): string | null {
  * claimed "Ngoại tuyến" (a lie — the connection was fine) and never overwrote
  * the bad blob, so it stayed corrupt forever.
  *
- * `"invalid"` means we reached the Worker and it answered with something that
- * is not an AppState. That is a repairable state, not an offline state.
+ * `"invalid"` means we reached the Worker and its body is neither a current
+ * state nor an upgradable older one (a v1 body is migrated in place, not
+ * rejected). That is a repairable state, not an offline state.
  */
 type RemoteResult =
   | { ok: true; state: AppState }
@@ -29,7 +30,8 @@ async function fetchRemote(url: string): Promise<RemoteResult> {
     const response = await fetch(url);
     if (!response.ok) return { ok: false };
     const body: unknown = await response.json();
-    return isAppState(body) ? { ok: true, state: body } : { ok: "invalid" };
+    const migrated = migrate(body);
+    return migrated ? { ok: true, state: migrated } : { ok: "invalid" };
   } catch {
     return { ok: false };
   }
@@ -125,7 +127,8 @@ export function useRemoteState(): UseRemoteStateResult {
       }
       // A corrupt remote blob is repaired by pushing our valid copy over it,
       // not by giving up: the connection works, we just disagree about the
-      // contents. (No migration/versioning seam here — that is later work.)
+      // contents. `fetchRemote` already ran the body through `migrate()`, so an
+      // "invalid" here is a blob that isn't even an upgradable older version.
       if ((remote !== null && remote.ok === "invalid") || source === "local") {
         const pushStatus = await putState(resolved);
         if (!cancelled) setStatus(pushStatus);

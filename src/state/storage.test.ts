@@ -29,13 +29,28 @@ describe("mirror", () => {
 
   it("returns null for a stored blob with the wrong version", () => {
     const state = stateAt("2026-08-30T10:00:00.000Z");
-    localStorage.setItem(MIRROR_KEY, JSON.stringify({ ...state, version: 2 }));
+    localStorage.setItem(MIRROR_KEY, JSON.stringify({ ...state, version: 99 }));
     expect(readMirror()).toBeNull();
   });
 
   it("returns null for a structurally incomplete blob", () => {
     localStorage.setItem(MIRROR_KEY, JSON.stringify({ version: 1 }));
     expect(readMirror()).toBeNull();
+  });
+
+  it("upgrades a stored v1 blob to v2 on read", () => {
+    const v1 = {
+      version: 1,
+      updatedAt: "2026-08-30T10:00:00.000Z",
+      programStartDate: "2026-08-24",
+      ui: { activeCategory: "face", activeDayByCategory: { face: 1, hair: 2, body: 0 } },
+    };
+    localStorage.setItem(MIRROR_KEY, JSON.stringify(v1));
+    const read = readMirror();
+    expect(read).not.toBeNull();
+    expect(read?.version).toBe(2);
+    expect(read?.completedSteps).toEqual([]);
+    expect(read?.ui.activeDayByCategory.hair).toBe(2);
   });
 
   it("does not throw when localStorage rejects the write", () => {
@@ -73,7 +88,7 @@ describe("reconcile", () => {
   it("falls back to a default when neither exists", () => {
     const result = reconcile(null, null);
     expect(result.source).toBe("default");
-    expect(result.state.version).toBe(1);
+    expect(result.state.version).toBe(2);
     expect(result.state.ui.activeCategory).toBe("face");
   });
 

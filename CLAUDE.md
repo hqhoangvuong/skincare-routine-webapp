@@ -9,6 +9,9 @@ TypeScript frontend backed by a small Cloudflare Worker that stores the user's s
 tab is open, the program start date) in a single KV key. It deploys as two independent artifacts from one
 repo: the frontend to GitHub Pages, the Worker to Cloudflare.
 
+Live since 2026-09-01: frontend at `https://hqhoangvuong.github.io/skincare-routine-webapp/`, Worker at
+`https://skincare-state.hoangvuong19991964.workers.dev`.
+
 The routine content — every product name, every day's steps, every note — was ported verbatim from the
 project's original prototype, a single self-contained `skincare-routine.html` file. That file has been
 deleted (its job was to be the parity baseline for the rebuild; it is preserved in git history if you need
@@ -80,6 +83,13 @@ worker/
   To change what's shown on a given day, edit the relevant entry in `faceDays`/`hairDays`/`bodyDays` in
   `routine.ts` — no component changes needed. `DayPanel.tsx` holds the per-category copy (card titles,
   subtitles, and the face-only "Trọng tâm tối nay: " badge prefix) in one `PANEL_COPY` lookup.
+- **Week-conditional steps live in `src/shared/schedule.ts`, not in `routine.ts`.** `routine.ts` holds the
+  steady-state (week 3+) form; `resolveDay(category, dayIndex, week)` swaps in the weeks-1–2
+  Wednesday-AM Vitamin C step and the even-week Sunday-PM "Natural White" mask — `week` is the 1-based
+  program week from `programWeek()`. `programWeek` / `weekCyclePosition` (`src/shared/date.ts`) are
+  calendar Mon–Sun weeks from `programStartDate`.
+  `src/shared/progress.ts` has the check-off math (`toggleCompletedStep`, `isStepDone`, `phaseCompletion`,
+  `dayCompletion`).
 - **Theming via scoped CSS variables**, unchanged from the original: colors are defined once on `:root`
   (the face/rose palette) and overridden by `.theme-yellow` (hair) and `.theme-almond` (body) classes on
   the `<section class="category">` element. Add a new palette by defining a new `.theme-*` block that
@@ -123,6 +133,15 @@ and flows through one path:
   by the frontend's `localStorage` mirror parse and by the Worker's `PUT` body check. It lives beside the
   type it guards specifically so the two deployables can't drift into accepting different shapes; if you
   ever find yourself writing a second shape check for `AppState`, import this one instead.
+- `completedSteps` on `AppState` is a flat dated log of checked steps (`{ date, category, phase,
+  stepIndex }`), written via `useAppState().toggleStep(...)` and carried on the same debounced `PUT`. The
+  visible checkboxes are the entries whose `date` falls in the current Mon–Sun week; older entries stay in
+  the log for a later stats view. Checks are keyed by calendar date + step index, not by resolved product,
+  so editing `programStartDate` across the week-2/3 boundary can leave a checked slot showing the other
+  week's product — the accepted positional-identity trade-off. `AppState` is `version: 2`; `migrate()` in `src/shared/types.ts`
+  upgrades a v1 blob (adds `completedSteps: []`) and is called on every untrusted read — the
+  `localStorage` mirror, `fetchRemote`, and the Worker's `GET` (which also persists the upgrade). Add
+  future migrations there; keep `isV1State` a frozen snapshot.
 
 ### The Worker
 
@@ -199,16 +218,28 @@ Two independent GitHub Actions workflows in `.github/workflows/`, both triggered
 - **`deploy-worker.yml`** — triggered on `main` pushes touching `worker/**`, `src/shared/**`, or
   `wrangler.toml`; runs the test suite, then `wrangler deploy` via `cloudflare/wrangler-action`.
 
-**Two placeholders in `wrangler.toml` must be substituted before the first Worker deploy**, and nothing
-in the build catches them for you:
+**Two `wrangler.toml` fields were placeholders and are now set** (filled 2026-09-01); nothing in the
+build validates them, so if either drifts from reality the failure is silent and off-screen:
 
-- `id` under `[[kv_namespaces]]` — the real KV namespace id. Left as `<kv-namespace-id>`, `wrangler
-  deploy` fails outright, so `deploy-worker.yml` goes red on the first push touching `worker/**`.
-- `ALLOWED_ORIGIN` under `[vars]` — the real Pages origin (`https://<your-user>.github.io`, scheme and
-  host only, no repo path). Left as `https://<user>.github.io`, the deploy *succeeds* and the app is
-  broken in the confusing way: every browser request fails the CORS check (`X-Write-Token` is a
-  non-simple header, so even the `PUT` preflight is rejected), the UI shows "Ngoại tuyến — đang hiển thị
-  dữ liệu đã lưu" indefinitely, and nothing on screen points at the origin as the cause.
+- `id` under `[[kv_namespaces]]` — the real KV namespace id, now `73f1dda9aef741a9b1dab01bd7909f60`.
+  A wrong/placeholder value makes `wrangler deploy` fail outright, so `deploy-worker.yml` goes red on
+  the first push touching `worker/**`.
+- `ALLOWED_ORIGIN` under `[vars]` — the real Pages origin (scheme and host only, no repo path), now
+  `https://hqhoangvuong.github.io`. If it stops matching the real Pages URL the deploy still *succeeds*
+  and the app breaks in the confusing way: every browser request fails the CORS check (`X-Write-Token`
+  is a non-simple header, so even the `PUT` preflight is rejected), the UI shows "Ngoại tuyến — đang
+  hiển thị dữ liệu đã lưu" indefinitely, and nothing on screen points at the origin as the cause.
+
+A push touching `src/shared/**` fires both deploy workflows at once and they race; whichever lands second
+leaves a brief window where an old client GETs a v2 blob it doesn't expect (→ transient "Ngoại tuyến",
+self-heals on reload). No data is lost: the old client's repair-`PUT` of a v1 body is 400'd by
+`isAppState()` before it can clobber the migrated blob, and the local mirror wins the next reconcile.
+
+The four GitHub Actions repo secrets are set: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`,
+`WRITE_TOKEN` (also stored as a Worker secret via `wrangler secret put`), and `VITE_WORKER_URL`.
+`VITE_WORKER_URL` **must include the `https://` scheme** — `useRemoteState.ts` does `${base}/state`, so a
+scheme-less value resolves as a path relative to the Pages origin and every request 404s. It is inlined
+at build time, so changing it needs a `deploy-pages.yml` re-run, not just a Worker redeploy.
 
 `VITE_WRITE_TOKEN` is inlined into the public client bundle at build time — it prevents casual abuse of the
 `PUT` endpoint, not a determined attacker reading the deployed JS. It is not a secret in the traditional
@@ -216,17 +247,19 @@ sense once the site is live; don't treat leaking it as more than a minor issue.
 
 ## Out of scope here, and where later work attaches
 
-This is sub-project 1 of a five-part plan. Deliberately not built yet: progress tracking (checking off
-individual steps, a `completedSteps` history that would also resolve the week‑1/2‑vs‑week‑3+ Niacinamide
-rule the face note box currently just describes in prose), a content editor, a PWA manifest/service worker,
-and push notifications/reminders. Don't add pieces of these speculatively — the seams are already in place
-for them:
+This is sub-project 1 of a five-part plan, and it is deployed and verified live (2026-09-01).
+Progress tracking (sub-project 2) now exists: per-step checkboxes, the `WeekProgress` strip above the day
+tabs, and the `schedule.ts` resolver for the week‑1/2‑vs‑week‑3+ Niacinamide rule and the 4-week mask
+rotation — with `completedSteps` retained as a full dated log. Still deferred within it: streaks and a
+multi-week history view over that log. Deliberately not built yet: a content editor, a PWA
+manifest/service worker, and push notifications/reminders. Don't add pieces of these speculatively — the
+seams are already in place for them:
 
 - `src/shared/` is the shared-module boundary those sub-projects are expected to extend (e.g. a
   `completedSteps` shape would live in `types.ts` beside `AppState`).
 - `BASE_PATH` is already plumbed through `vite.config.ts` and the Pages workflow for a future manifest
   `start_url` and service worker scope to reuse.
-- `weekdayIndex()` in `date.ts` exists for a later sub-project to build on even though nothing in this app
-  calls it yet (the UI restores the persisted tab, not "today's" tab).
+- `weekdayIndex()` in `date.ts` is used by `WeekProgress` to mark today's column in the week strip; the
+  day tabs still restore the persisted tab, not "today's" tab.
 - `SettingsPanel` is the intended home for a future reminders toggle and test-send button — it's kept
   deliberately small (one date field) for exactly that reason.

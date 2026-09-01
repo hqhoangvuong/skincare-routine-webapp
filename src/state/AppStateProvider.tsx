@@ -1,6 +1,8 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { useRemoteState } from "./useRemoteState";
-import type { AppState, Category, SyncStatus } from "../shared/types";
+import { toggleCompletedStep } from "../shared/progress";
+import { todayIso, weekdayDateIso } from "../shared/date";
+import type { AppState, Category, StepPhase, SyncStatus } from "../shared/types";
 
 type AppStateContextValue = {
   state: AppState;
@@ -9,6 +11,7 @@ type AppStateContextValue = {
   setActiveCategory: (category: Category) => void;
   setActiveDay: (category: Category, day: number) => void;
   setProgramStartDate: (iso: string) => void;
+  toggleStep: (category: Category, dayIndex: number, phase: StepPhase, stepIndex: number) => void;
 };
 
 const AppStateContext = createContext<AppStateContextValue | null>(null);
@@ -31,7 +34,24 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             activeDayByCategory: { ...prev.ui.activeDayByCategory, [category]: day },
           },
         })),
-      setProgramStartDate: (iso) => update((prev) => ({ ...prev, programStartDate: iso })),
+      setProgramStartDate: (iso) => {
+        // A cleared <input type="date"> posts "" — ignore it rather than write a
+        // blank programStartDate that would make programWeek()/resolveDay() clamp.
+        if (!iso) return;
+        update((prev) => ({ ...prev, programStartDate: iso }));
+      },
+      // Stamps the date from the real todayIso(); DayPanel/WeekProgress accept a
+      // `now` override for tests, but this seam is intentionally one-sided —
+      // production check-offs are always "real now".
+      toggleStep: (category, dayIndex, phase, stepIndex) =>
+        update((prev) =>
+          toggleCompletedStep(prev, {
+            date: weekdayDateIso(dayIndex, todayIso()),
+            category,
+            phase,
+            stepIndex,
+          }),
+        ),
     }),
     [state, status, loaded, update],
   );

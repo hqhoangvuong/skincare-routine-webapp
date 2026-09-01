@@ -230,6 +230,27 @@ describe("useRemoteState", () => {
     await waitFor(() => expect(result.current.loaded).toBe(true));
   });
 
+  it("upgrades a v1 remote body instead of treating it as invalid", async () => {
+    const v1 = {
+      version: 1,
+      updatedAt: "2026-08-30T10:00:00.000Z",
+      programStartDate: "2026-08-24",
+      ui: { activeCategory: "face", activeDayByCategory: { face: 0, hair: 0, body: 0 } },
+    };
+    const fetchSpy = mockFetch(async (_url, init) =>
+      init?.method === "PUT" ? new Response(null, { status: 204 }) : jsonResponse(v1),
+    );
+    const { result } = renderHook(() => useRemoteState());
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    expect(result.current.state.version).toBe(2);
+    expect(result.current.state.completedSteps).toEqual([]);
+    // A v1 body is valid-after-migrate, so this is NOT the corrupt-blob repair
+    // path: no forced PUT, status stays synced.
+    const puts = fetchSpy.mock.calls.filter(([, init]) => init?.method === "PUT");
+    expect(puts).toHaveLength(0);
+    expect(result.current.status).toBe("synced");
+  });
+
   it("repairs a corrupt remote blob instead of reporting offline", async () => {
     // A 200 whose body fails isAppState is not a network failure: claiming
     // "offline" sends the user to check their wifi, and leaves the bad blob in

@@ -41,11 +41,17 @@ describe("routine data", () => {
     }
   });
 
-  it("preserves the week-1-2 Niacinamide note on Wednesday morning", () => {
+  it("keeps Wednesday morning on the steady-state Niacinamide serum (the week rule now lives in schedule.ts)", () => {
     const wednesday = routine.face.days[2];
-    expect(isHairDay(wednesday)).toBe(false);
-    if (isHairDay(wednesday)) return;
-    const notes = wednesday.am.map((s) => s[1]).join(" ");
-    expect(notes).toContain("Tuần 3");
+    if (isHairDay(wednesday)) throw new Error("expected a face day");
+    expect(wednesday.am[2][0]).toBe("Serum Niacinamide 15% — Cocoon");
+    expect(wednesday.am.map((s) => s[1]).join(" ")).not.toContain("Tuần");
+  });
+
+  it("keeps Sunday evening on the odd-week mask (the rotation now lives in schedule.ts)", () => {
+    const sunday = routine.face.days[6];
+    if (isHairDay(sunday)) throw new Error("expected a face day");
+    expect(sunday.pm[3][0]).toBe("Mặt nạ Histolab Peppermint");
+    expect(sunday.pm.map((s) => s[1]).join(" ")).not.toContain("Tuần 2&4");
   });
 });
