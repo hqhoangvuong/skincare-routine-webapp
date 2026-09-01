@@ -84,9 +84,10 @@ worker/
   `routine.ts` — no component changes needed. `DayPanel.tsx` holds the per-category copy (card titles,
   subtitles, and the face-only "Trọng tâm tối nay: " badge prefix) in one `PANEL_COPY` lookup.
 - **Week-conditional steps live in `src/shared/schedule.ts`, not in `routine.ts`.** `routine.ts` holds the
-  steady-state (week 3+) form; `resolveDay(category, dayIndex, programWeek)` swaps in the weeks-1–2
-  Wednesday-AM Vitamin C step and the even-week Sunday-PM "Natural White" mask. `programWeek` /
-  `weekCyclePosition` (`src/shared/date.ts`) are calendar Mon–Sun weeks from `programStartDate`.
+  steady-state (week 3+) form; `resolveDay(category, dayIndex, week)` swaps in the weeks-1–2
+  Wednesday-AM Vitamin C step and the even-week Sunday-PM "Natural White" mask — `week` is the 1-based
+  program week from `programWeek()`. `programWeek` / `weekCyclePosition` (`src/shared/date.ts`) are
+  calendar Mon–Sun weeks from `programStartDate`.
   `src/shared/progress.ts` has the check-off math (`toggleCompletedStep`, `isStepDone`, `phaseCompletion`,
   `dayCompletion`).
 - **Theming via scoped CSS variables**, unchanged from the original: colors are defined once on `:root`
