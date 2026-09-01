@@ -1,5 +1,5 @@
 import { makeDefaultState } from "../shared/defaults";
-import { isAppState, type AppState } from "../shared/types";
+import { migrate, type AppState } from "../shared/types";
 
 export const MIRROR_KEY = "skincare.state.v1";
 
@@ -8,7 +8,7 @@ export function readMirror(): AppState | null {
     const raw = localStorage.getItem(MIRROR_KEY);
     if (!raw) return null;
     const parsed: unknown = JSON.parse(raw);
-    return isAppState(parsed) ? parsed : null;
+    return migrate(parsed);
   } catch {
     return null;
   }

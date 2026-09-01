@@ -38,6 +38,21 @@ describe("mirror", () => {
     expect(readMirror()).toBeNull();
   });
 
+  it("upgrades a stored v1 blob to v2 on read", () => {
+    const v1 = {
+      version: 1,
+      updatedAt: "2026-08-30T10:00:00.000Z",
+      programStartDate: "2026-08-24",
+      ui: { activeCategory: "face", activeDayByCategory: { face: 1, hair: 2, body: 0 } },
+    };
+    localStorage.setItem(MIRROR_KEY, JSON.stringify(v1));
+    const read = readMirror();
+    expect(read).not.toBeNull();
+    expect(read?.version).toBe(2);
+    expect(read?.completedSteps).toEqual([]);
+    expect(read?.ui.activeDayByCategory.hair).toBe(2);
+  });
+
   it("does not throw when localStorage rejects the write", () => {
     const spy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new Error("quota exceeded");
