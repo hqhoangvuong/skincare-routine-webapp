@@ -82,6 +82,9 @@ describe("PUT /state", () => {
   it("rejects a wrong token", async () => {
     const response = await handleRequest(putRequest(makeDefaultState(), "nope"), env);
     expect(response.status).toBe(401);
+    // A 401 that writes anyway is the auth bug that matters, so assert the
+    // store is untouched here too, not only in the missing-token case.
+    expect(env.STATE.store.size).toBe(0);
   });
 
   it("rejects a body that is not a version 1 state", async () => {

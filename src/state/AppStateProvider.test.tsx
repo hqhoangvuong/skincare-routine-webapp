@@ -4,9 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppStateProvider, useAppState } from "./AppStateProvider";
 
 function Probe() {
-  const { state, setActiveCategory, setActiveDay, setProgramStartDate } = useAppState();
+  const { state, status, setActiveCategory, setActiveDay, setProgramStartDate } = useAppState();
   return (
     <div>
+      <span data-testid="status">{status}</span>
       <span data-testid="category">{state.ui.activeCategory}</span>
       <span data-testid="day">{state.ui.activeDayByCategory[state.ui.activeCategory]}</span>
       <span data-testid="start">{state.programStartDate}</span>
@@ -24,6 +25,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
 });
 
 describe("AppStateProvider", () => {
@@ -67,6 +69,35 @@ describe("AppStateProvider", () => {
     // ui must survive the programStartDate write
     await userEvent.click(screen.getByText("to hair"));
     expect(screen.getByTestId("day")).toHaveTextContent("4");
+  });
+
+  // `status` is the input to SyncNotice, the only user-visible error surface in
+  // the app; a context that forgot to pass it through would leave the user with
+  // no signal at all that their changes are not being saved.
+  it("surfaces the unauthorized status through the context", async () => {
+    // beforeEach leaves VITE_WORKER_URL empty — the local-only mode.
+    render(
+      <AppStateProvider>
+        <Probe />
+      </AppStateProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("unauthorized"));
+  });
+
+  it("surfaces the offline status through the context", async () => {
+    vi.stubEnv("VITE_WORKER_URL", "https://worker.test");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("network error");
+      }),
+    );
+    render(
+      <AppStateProvider>
+        <Probe />
+      </AppStateProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("offline"));
   });
 
   it("throws a useful error when used outside the provider", () => {

@@ -30,6 +30,10 @@ npm run build           # typecheck, then vite build (fails the build on any TS 
 npm run worker:deploy   # wrangler deploy
 ```
 
+Node 20 (`.nvmrc`), matching the `node-version: 20` both deploy workflows pin. Nothing enforces it
+locally — `nvm use` / `fnm use` picks it up, and newer majors have worked so far — but 20 is the only
+version CI ever builds with, so it is the one to reproduce a CI failure on.
+
 There is no general lint step. `strict: true`, the test suite, and the one narrow gate below
 (`lint:constraints`, which `npm run test` runs first) are the whole safety net.
 
