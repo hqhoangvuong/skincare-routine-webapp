@@ -35,7 +35,7 @@ There is no general lint step. `strict: true`, the test suite, and the one narro
 
 With no `.env`/`.env.local` set (copy `.env.example` to start), `npm run dev` runs the frontend in
 **local-only mode**: no `VITE_WORKER_URL` means the app never talks to a Worker, state lives only in
-`localStorage`, and the UI shows the "sync đang tắt" notice. This is intentional — it keeps local dev
+`localStorage`, and the UI shows the "Đồng bộ đang tắt — kiểm tra cấu hình" notice. This is intentional — it keeps local dev
 usable with no Cloudflare account. To exercise real sync locally, run `npm run worker:dev` in one terminal
 and point `VITE_WORKER_URL` at it (`http://127.0.0.1:8787` by default) in `.env.local`.
 
@@ -194,6 +194,17 @@ Two independent GitHub Actions workflows in `.github/workflows/`, both triggered
   build-time secrets, then deploys `dist/` via `actions/deploy-pages`.
 - **`deploy-worker.yml`** — triggered on `main` pushes touching `worker/**`, `src/shared/**`, or
   `wrangler.toml`; runs the test suite, then `wrangler deploy` via `cloudflare/wrangler-action`.
+
+**Two placeholders in `wrangler.toml` must be substituted before the first Worker deploy**, and nothing
+in the build catches them for you:
+
+- `id` under `[[kv_namespaces]]` — the real KV namespace id. Left as `<kv-namespace-id>`, `wrangler
+  deploy` fails outright, so `deploy-worker.yml` goes red on the first push touching `worker/**`.
+- `ALLOWED_ORIGIN` under `[vars]` — the real Pages origin (`https://<your-user>.github.io`, scheme and
+  host only, no repo path). Left as `https://<user>.github.io`, the deploy *succeeds* and the app is
+  broken in the confusing way: every browser request fails the CORS check (`X-Write-Token` is a
+  non-simple header, so even the `PUT` preflight is rejected), the UI shows "Ngoại tuyến — đang hiển thị
+  dữ liệu đã lưu" indefinitely, and nothing on screen points at the origin as the cause.
 
 `VITE_WRITE_TOKEN` is inlined into the public client bundle at build time — it prevents casual abuse of the
 `PUT` endpoint, not a determined attacker reading the deployed JS. It is not a secret in the traditional

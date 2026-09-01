@@ -20,13 +20,19 @@ These are the only manual setup steps; everything else is automated.
    trigger on `main`.
 3. GitHub Pages is enabled for the repo with **Source: GitHub Actions**.
 4. A Cloudflare account exists, with a KV namespace created and its id noted.
-5. The following repository secrets are set in GitHub → Settings → Secrets
+5. Both placeholders in `wrangler.toml` are substituted and committed — the
+   noted KV namespace id replaces `id = "<kv-namespace-id>"`, and the real
+   Pages origin (`https://<your-user>.github.io`, scheme and host only)
+   replaces `ALLOWED_ORIGIN = "https://<user>.github.io"`. Left unsubstituted,
+   the KV id fails `wrangler deploy` outright and the origin silently blocks
+   every browser request via CORS, leaving the app stuck on "Ngoại tuyến".
+6. The following repository secrets are set in GitHub → Settings → Secrets
    and variables → Actions:
    - `CLOUDFLARE_API_TOKEN` — scoped to Workers Scripts:Edit + Workers KV:Edit
    - `CLOUDFLARE_ACCOUNT_ID`
    - `WRITE_TOKEN` — a long random string, generated once
    - `VITE_WORKER_URL` — the deployed Worker's URL
-6. The same `WRITE_TOKEN` value is set as a Worker secret:
+7. The same `WRITE_TOKEN` value is set as a Worker secret:
    `wrangler secret put WRITE_TOKEN`.
 
 ## Toolchain
