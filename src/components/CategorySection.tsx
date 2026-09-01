@@ -1,8 +1,12 @@
+import { useState } from "react";
 import Gallery from "./Gallery";
 import WeekProgress from "./WeekProgress";
 import DayTabs from "./DayTabs";
 import DayPanel from "./DayPanel";
-import { getCategoryData } from "../shared/content";
+import {
+  addProduct, addStep, getCategoryData, removeProduct, removeStep,
+  renameProduct, resetCategory, setStepVariant, updateStepTuple,
+} from "../shared/content";
 import type { AppState, Category } from "../shared/types";
 
 const THEME_CLASS: Record<Category, string> = {
@@ -289,9 +293,9 @@ export default function CategorySection({
   onToggleStep: (category: Category, dayIndex: number, stepId: string) => void;
   editContent: (mutate: (state: AppState) => AppState) => void;
 }) {
-  // Not called yet — no editing UI in this unit (Task 10 wires it up). Threaded
-  // through now so the prop shape/context contract is stable ahead of that.
-  void editContent;
+  // `editing` is local useState, so it resets for free whenever App.tsx
+  // remounts this component with key={activeCategory} on category switch.
+  const [editing, setEditing] = useState(false);
 
   const data = getCategoryData(state, category);
   const Hero = HERO[category];
@@ -301,16 +305,56 @@ export default function CategorySection({
     <section className={`category ${THEME_CLASS[category]}`.trim()}>
       <Hero />
 
-      <h2 className="section-title">{GALLERY_TITLE[category]}</h2>
-      <Gallery products={data.products} />
+      <button
+        type="button"
+        className="edit-toggle"
+        aria-pressed={editing}
+        aria-label="Chỉnh sửa nội dung"
+        onClick={() => setEditing((v) => !v)}
+      >
+        ✎
+      </button>
+      {editing && (
+        <button
+          type="button"
+          className="reset-category"
+          onClick={() => {
+            if (window.confirm(`Đặt lại toàn bộ nội dung mục này về mặc định? Các thay đổi bạn đã tạo sẽ bị xoá.`)) {
+              editContent((s) => resetCategory(s, category));
+            }
+          }}
+        >
+          Đặt lại theo mặc định
+        </button>
+      )}
 
-      <WeekProgress category={category} state={state} />
+      <h2 className="section-title">{GALLERY_TITLE[category]}</h2>
+      <Gallery
+        products={data.products}
+        editing={editing}
+        onEdit={{
+          onRename: (i, name) => editContent((s) => renameProduct(s, category, i, name)),
+          onRemove: (i) => editContent((s) => removeProduct(s, category, i)),
+          onAdd: () => editContent((s) => addProduct(s, category)),
+        }}
+      />
+
+      {!editing && <WeekProgress category={category} state={state} />}
       <DayTabs days={data.days} activeDay={activeDay} onSelect={onSelectDay} />
       <DayPanel
         category={category}
         state={state}
         dayIndex={activeDay}
         onToggleStep={onToggleStep}
+        editing={editing}
+        onEdit={{
+          onAddStep: (phase) => editContent((s) => addStep(s, category, activeDay, phase)),
+          onUpdateStep: (phase, id, product, note) =>
+            editContent((s) => updateStepTuple(s, category, activeDay, phase, id, product, note)),
+          onRemoveStep: (phase, id) => editContent((s) => removeStep(s, category, activeDay, phase, id)),
+          onSetVariant: (phase, id, variant) =>
+            editContent((s) => setStepVariant(s, category, activeDay, phase, id, variant)),
+        }}
       />
 
       <Extras />

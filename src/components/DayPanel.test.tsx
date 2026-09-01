@@ -88,4 +88,26 @@ describe("DayPanel", () => {
     expect(document.querySelector(".card.am")).toBeNull();
     expect(screen.getAllByRole("checkbox").length).toBeGreaterThan(0);
   });
+
+  it("edit mode: renders StepEditor rows, hides the count badge, shows add-step", async () => {
+    const state = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
+    const onEdit = { onAddStep: vi.fn(), onUpdateStep: vi.fn(), onRemoveStep: vi.fn(), onSetVariant: vi.fn() };
+    render(<DayPanel category="face" state={state} dayIndex={0} onToggleStep={() => {}} now={WEEK1_NOW}
+      editing onEdit={onEdit} />);
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(screen.queryByText(/^\d+\/\d+$/)).toBeNull(); // no "2/5" badge
+    const toggles = screen.getAllByRole("button", { name: /sửa bước/i });
+    expect(toggles.length).toBeGreaterThan(0);
+    await userEvent.click(screen.getAllByRole("button", { name: /thêm bước/i })[0]);
+    expect(onEdit.onAddStep).toHaveBeenCalledWith("am");
+  });
+
+  it("edit mode: removing a step calls onRemoveStep with (phase, id)", async () => {
+    const state = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
+    const onEdit = { onAddStep: vi.fn(), onUpdateStep: vi.fn(), onRemoveStep: vi.fn(), onSetVariant: vi.fn() };
+    render(<DayPanel category="face" state={state} dayIndex={0} onToggleStep={() => {}} now={WEEK1_NOW}
+      editing onEdit={onEdit} />);
+    await userEvent.click(screen.getAllByRole("button", { name: /xoá bước/i })[0]);
+    expect(onEdit.onRemoveStep).toHaveBeenCalledWith("am", "face.0.am.0");
+  });
 });

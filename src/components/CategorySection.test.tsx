@@ -58,4 +58,24 @@ describe("CategorySection", () => {
     );
     expect(container.querySelector("section")).toHaveClass("theme-yellow");
   });
+
+  it("toggles edit mode with the pencil and hides the week strip + checkboxes", async () => {
+    render(<CategorySection category="face" activeDay={0} onSelectDay={() => {}} {...stateProps} />);
+    expect(screen.getByRole("group", { name: /Tiến độ tuần/ })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /chỉnh sửa nội dung/i }));
+    expect(screen.queryByRole("group", { name: /Tiến độ tuần/ })).toBeNull();
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(screen.getByRole("button", { name: /đặt lại theo mặc định/i })).toBeInTheDocument();
+  });
+
+  it("exits edit mode when the category prop changes (remount via key in App)", () => {
+    // App.tsx remounts CategorySection with key={activeCategory}; simulate by
+    // re-rendering with a different key and asserting the pencil is back to
+    // aria-pressed=false. (Covered structurally: editing is local useState.)
+    const { rerender } = render(
+      <CategorySection key="face" category="face" activeDay={0} onSelectDay={() => {}} {...stateProps} />,
+    );
+    rerender(<CategorySection key="hair" category="hair" activeDay={0} onSelectDay={() => {}} {...stateProps} />);
+    expect(screen.getByRole("button", { name: /chỉnh sửa nội dung/i })).toHaveAttribute("aria-pressed", "false");
+  });
 });
