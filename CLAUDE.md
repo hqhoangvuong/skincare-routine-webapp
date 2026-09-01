@@ -9,6 +9,9 @@ TypeScript frontend backed by a small Cloudflare Worker that stores the user's s
 tab is open, the program start date) in a single KV key. It deploys as two independent artifacts from one
 repo: the frontend to GitHub Pages, the Worker to Cloudflare.
 
+Live since 2026-09-01: frontend at `https://hqhoangvuong.github.io/skincare-routine-webapp/`, Worker at
+`https://skincare-state.hoangvuong19991964.workers.dev`.
+
 The routine content — every product name, every day's steps, every note — was ported verbatim from the
 project's original prototype, a single self-contained `skincare-routine.html` file. That file has been
 deleted (its job was to be the parity baseline for the rebuild; it is preserved in git history if you need
@@ -199,16 +202,23 @@ Two independent GitHub Actions workflows in `.github/workflows/`, both triggered
 - **`deploy-worker.yml`** — triggered on `main` pushes touching `worker/**`, `src/shared/**`, or
   `wrangler.toml`; runs the test suite, then `wrangler deploy` via `cloudflare/wrangler-action`.
 
-**Two placeholders in `wrangler.toml` must be substituted before the first Worker deploy**, and nothing
-in the build catches them for you:
+**Two `wrangler.toml` fields were placeholders and are now set** (filled 2026-09-01); nothing in the
+build validates them, so if either drifts from reality the failure is silent and off-screen:
 
-- `id` under `[[kv_namespaces]]` — the real KV namespace id. Left as `<kv-namespace-id>`, `wrangler
-  deploy` fails outright, so `deploy-worker.yml` goes red on the first push touching `worker/**`.
-- `ALLOWED_ORIGIN` under `[vars]` — the real Pages origin (`https://<your-user>.github.io`, scheme and
-  host only, no repo path). Left as `https://<user>.github.io`, the deploy *succeeds* and the app is
-  broken in the confusing way: every browser request fails the CORS check (`X-Write-Token` is a
-  non-simple header, so even the `PUT` preflight is rejected), the UI shows "Ngoại tuyến — đang hiển thị
-  dữ liệu đã lưu" indefinitely, and nothing on screen points at the origin as the cause.
+- `id` under `[[kv_namespaces]]` — the real KV namespace id, now `73f1dda9aef741a9b1dab01bd7909f60`.
+  A wrong/placeholder value makes `wrangler deploy` fail outright, so `deploy-worker.yml` goes red on
+  the first push touching `worker/**`.
+- `ALLOWED_ORIGIN` under `[vars]` — the real Pages origin (scheme and host only, no repo path), now
+  `https://hqhoangvuong.github.io`. If it stops matching the real Pages URL the deploy still *succeeds*
+  and the app breaks in the confusing way: every browser request fails the CORS check (`X-Write-Token`
+  is a non-simple header, so even the `PUT` preflight is rejected), the UI shows "Ngoại tuyến — đang
+  hiển thị dữ liệu đã lưu" indefinitely, and nothing on screen points at the origin as the cause.
+
+The four GitHub Actions repo secrets are set: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`,
+`WRITE_TOKEN` (also stored as a Worker secret via `wrangler secret put`), and `VITE_WORKER_URL`.
+`VITE_WORKER_URL` **must include the `https://` scheme** — `useRemoteState.ts` does `${base}/state`, so a
+scheme-less value resolves as a path relative to the Pages origin and every request 404s. It is inlined
+at build time, so changing it needs a `deploy-pages.yml` re-run, not just a Worker redeploy.
 
 `VITE_WRITE_TOKEN` is inlined into the public client bundle at build time — it prevents casual abuse of the
 `PUT` endpoint, not a determined attacker reading the deployed JS. It is not a secret in the traditional
@@ -216,7 +226,8 @@ sense once the site is live; don't treat leaking it as more than a minor issue.
 
 ## Out of scope here, and where later work attaches
 
-This is sub-project 1 of a five-part plan. Deliberately not built yet: progress tracking (checking off
+This is sub-project 1 of a five-part plan, and it is deployed and verified live (2026-09-01).
+Deliberately not built yet: progress tracking (checking off
 individual steps, a `completedSteps` history that would also resolve the week‑1/2‑vs‑week‑3+ Niacinamide
 rule the face note box currently just describes in prose), a content editor, a PWA manifest/service worker,
 and push notifications/reminders. Don't add pieces of these speculatively — the seams are already in place
