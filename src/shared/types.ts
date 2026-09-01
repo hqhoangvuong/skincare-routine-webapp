@@ -41,8 +41,8 @@ export type FaceOrBodyDay = {
   short: string;
   full: string;
   focus: string;
-  am: StepTuple[];
-  pm: StepTuple[];
+  am: RoutineStep[];
+  pm: RoutineStep[];
 };
 
 /** Hair days are a flat list and use `type` where face/body use `focus`. */
@@ -50,7 +50,7 @@ export type HairDay = {
   short: string;
   full: string;
   type: string;
-  steps: StepTuple[];
+  steps: RoutineStep[];
 };
 
 export type DayData = FaceOrBodyDay | HairDay;
