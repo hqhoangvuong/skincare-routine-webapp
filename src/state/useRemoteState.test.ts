@@ -2,7 +2,7 @@ import { StrictMode } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useRemoteState } from "./useRemoteState";
-import { writeMirror } from "./storage";
+import { MIRROR_KEY, writeMirror } from "./storage";
 import { makeDefaultState } from "../shared/defaults";
 
 const remoteState = { ...makeDefaultState(), updatedAt: "2026-08-30T10:00:00.000Z" };
@@ -140,7 +140,7 @@ describe("useRemoteState", () => {
 
     expect(result.current.state.programStartDate).toBe("2026-01-01");
     expect(result.current.status).toBe("offline");
-    expect(JSON.parse(localStorage.getItem("skincare.state.v1")!).programStartDate).toBe("2026-01-01");
+    expect(JSON.parse(String(localStorage.getItem(MIRROR_KEY))).programStartDate).toBe("2026-01-01");
   });
 
   it("reports unauthorized when the worker rejects the token", async () => {
@@ -169,5 +169,89 @@ describe("useRemoteState", () => {
     await waitFor(() => expect(result.current.loaded).toBe(true));
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(result.current.status).toBe("unauthorized");
+  });
+
+  // A gate that lets a test hold the mount GET open while it interacts, the
+  // way a real 100-500ms round trip does.
+  function gatedGet(body: unknown = remoteState) {
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const fetchSpy = mockFetch(async (_url, init) => {
+      if (init?.method === "PUT") return new Response(null, { status: 204 });
+      await gate;
+      return jsonResponse(body);
+    });
+    return { fetchSpy, release: () => release() };
+  }
+
+  it("keeps an interaction made while the mount fetch is still in flight", async () => {
+    // The regression this guards: `load()` captured the mirror BEFORE awaiting
+    // the GET, so a tap during the round trip was reconciled away — erased from
+    // the screen and the mirror, while its debounced PUT still reached KV.
+    writeMirror({
+      ...makeDefaultState(),
+      updatedAt: "2026-08-29T10:00:00.000Z",
+      programStartDate: "2026-06-01",
+    });
+    // remoteState is dated 2026-08-30, i.e. newer than that mirror, so the
+    // pre-fetch snapshot would lose the reconcile and remote would win.
+    const { release } = gatedGet();
+    const { result } = renderHook(() => useRemoteState());
+
+    act(() => {
+      result.current.update((prev) => ({ ...prev, programStartDate: "2026-12-25" }));
+    });
+    await act(async () => {
+      release();
+    });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+
+    expect(result.current.state.programStartDate).toBe("2026-12-25");
+    expect(JSON.parse(String(localStorage.getItem(MIRROR_KEY))).programStartDate).toBe("2026-12-25");
+  });
+
+  it("paints the mirrored state before the fetch resolves", async () => {
+    writeMirror({
+      ...makeDefaultState(),
+      updatedAt: "2026-08-29T10:00:00.000Z",
+      programStartDate: "2026-06-01",
+    });
+    const { release } = gatedGet();
+    const { result } = renderHook(() => useRemoteState());
+
+    expect(result.current.loaded).toBe(false);
+    expect(result.current.state.programStartDate).toBe("2026-06-01");
+
+    await act(async () => {
+      release();
+    });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+  });
+
+  it("repairs a corrupt remote blob instead of reporting offline", async () => {
+    // A 200 whose body fails isAppState is not a network failure: claiming
+    // "offline" sends the user to check their wifi, and leaves the bad blob in
+    // KV forever even though a valid local copy and a working link both exist.
+    writeMirror({
+      ...makeDefaultState(),
+      updatedAt: "2026-08-29T10:00:00.000Z",
+      programStartDate: "2026-06-01",
+    });
+    const fetchSpy = mockFetch(async (_url, init) =>
+      init?.method === "PUT" ? new Response(null, { status: 204 }) : jsonResponse({ hello: "world" }),
+    );
+    const { result } = renderHook(() => useRemoteState());
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    await waitFor(() => {
+      const puts = fetchSpy.mock.calls.filter(([, init]) => init?.method === "PUT");
+      expect(puts).toHaveLength(1);
+    });
+
+    expect(result.current.status).toBe("synced");
+    expect(result.current.state.programStartDate).toBe("2026-06-01");
+    const puts = fetchSpy.mock.calls.filter(([, init]) => init?.method === "PUT");
+    expect(JSON.parse(String(puts[0][1]?.body)).programStartDate).toBe("2026-06-01");
   });
 });

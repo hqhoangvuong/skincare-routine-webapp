@@ -92,11 +92,18 @@ active category, active day per category, `programStartDate` — lives in `AppSt
 and flows through one path:
 
 - `useRemoteState()` (`src/state/useRemoteState.ts`) owns the `AppState`, exposes `update(mutate)`, and is
-  the only thing that talks to `localStorage` or the Worker. On mount it reads the `localStorage` mirror
-  and does a `GET /state`, then keeps whichever copy has the newer `updatedAt`
-  (`storage.ts#reconcile`) — this is what stops a successful mount-time `GET` from silently discarding a
-  newer local state whose last `PUT` failed. Every `update()` call writes the mirror synchronously and
-  schedules a debounced (500ms) `PUT` to the Worker.
+  the only thing that talks to `localStorage` or the Worker. Its initial state is the `localStorage`
+  mirror (so the persisted selection paints immediately instead of after the round trip). On mount it
+  does a `GET /state` and keeps whichever copy has the newer `updatedAt` (`storage.ts#reconcile`) — this
+  is what stops a successful mount-time `GET` from silently discarding a newer local state whose last
+  `PUT` failed. The local side of that reconcile is the *live* in-memory state whenever the user has
+  already touched something (tracked by a `dirty` ref), not the pre-fetch mirror snapshot: otherwise a tap
+  made during the round trip is erased from the screen and the mirror while its debounced `PUT` still
+  reaches KV. `update()` itself is a pure `setState`; mirroring and the debounced (500ms) `PUT` happen in
+  an effect keyed on the committed state, so nothing is persisted from a render React abandons or
+  double-invokes. A `GET` that returns 200 with a body failing `isAppState()` is reported distinctly from
+  a network failure (`fetchRemote` returns `{ ok: "invalid" }`) and is repaired by pushing the local copy
+  over it, rather than being mislabelled "offline" and left corrupt.
 - `AppStateProvider` (`src/state/AppStateProvider.tsx`) wraps `useRemoteState` in a Context and is the only
   place `setActiveCategory`/`setActiveDay`/`setProgramStartDate` are defined. Components call
   `useAppState()` and never touch `useRemoteState` or `storage.ts` directly.
