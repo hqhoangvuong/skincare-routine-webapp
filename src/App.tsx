@@ -22,7 +22,12 @@ export default function App() {
           Chọn một mục bên dưới để xem lịch chăm sóc theo từng ngày trong tuần, dùng đúng thứ tự sản phẩm bạn
           đang có.
         </p>
-        <button type="button" onClick={() => setSettingsOpen((open) => !open)}>
+        <button
+          type="button"
+          className="settings-toggle"
+          aria-expanded={settingsOpen}
+          onClick={() => setSettingsOpen((open) => !open)}
+        >
           Cài đặt
         </button>
       </div>
@@ -31,7 +36,11 @@ export default function App() {
 
       <CategorySwitcher active={activeCategory} onSelect={setActiveCategory} />
 
+      {/* key forces a remount per category so the `catfade` animation on
+          `.category` replays on every switch, as it did in the original. The
+          same component at the same position otherwise just takes new props. */}
       <CategorySection
+        key={activeCategory}
         category={activeCategory}
         activeDay={activeDayByCategory[activeCategory]}
         onSelectDay={(index) => setActiveDay(activeCategory, index)}

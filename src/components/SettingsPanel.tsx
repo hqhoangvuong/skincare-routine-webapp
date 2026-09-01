@@ -11,6 +11,7 @@ export default function SettingsPanel({ open, onClose }: { open: boolean; onClos
       </label>
       <input
         id="program-start"
+        className="settings-input"
         type="date"
         value={state.programStartDate}
         onChange={(event) => setProgramStartDate(event.target.value)}
@@ -18,7 +19,7 @@ export default function SettingsPanel({ open, onClose }: { open: boolean; onClos
       {/* No SyncNotice here: App renders exactly one at the top level. A second
           copy would put two role="status" live regions with identical text on
           the page, announcing twice to screen readers. */}
-      <button type="button" onClick={onClose}>
+      <button type="button" className="settings-close" onClick={onClose}>
         Đóng
       </button>
     </div>
