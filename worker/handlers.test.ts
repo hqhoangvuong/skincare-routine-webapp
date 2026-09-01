@@ -29,7 +29,7 @@ describe("GET /state", () => {
     const response = await handleRequest(new Request("https://w.test/state"), env);
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body).toMatchObject({ version: 1 });
+    expect(body).toMatchObject({ version: 2 });
     // The seed must be persisted, not just returned — otherwise every load
     // mints a fresh programStartDate and the week number never advances.
     expect(env.STATE.store.get(STATE_KEY)).toBeTruthy();
@@ -87,7 +87,7 @@ describe("PUT /state", () => {
     expect(env.STATE.store.size).toBe(0);
   });
 
-  it("rejects a body that is not a version 1 state", async () => {
+  it("rejects a body that is not a version 2 state", async () => {
     const response = await handleRequest(putRequest({ hello: "world" }, "secret"), env);
     expect(response.status).toBe(400);
   });
