@@ -3,49 +3,47 @@ import { Icon } from "../icons/icons";
 import { pickIcon } from "../icons/pickIcon";
 import { programWeek, todayIso } from "../shared/date";
 import { isStepDone, phaseCompletion } from "../shared/progress";
-import { resolveDay } from "../shared/schedule";
-import { isHairDay, type Category, type CompletedStep, type StepPhase, type StepTuple } from "../shared/types";
+import { resolveDayForState, type ResolvedStep } from "../shared/content";
+import type { AppState, Category } from "../shared/types";
 
-type ToggleStep = (category: Category, dayIndex: number, phase: StepPhase, stepIndex: number) => void;
+type ToggleStep = (category: Category, dayIndex: number, stepId: string) => void;
 
 function Steps({
   steps,
   category,
   dayIndex,
-  phase,
   completedSteps,
   nowIso,
   onToggleStep,
 }: {
-  steps: StepTuple[];
+  steps: ResolvedStep[];
   category: Category;
   dayIndex: number;
-  phase: StepPhase;
-  completedSteps: CompletedStep[];
+  completedSteps: AppState["completedSteps"];
   nowIso: string;
   onToggleStep: ToggleStep;
 }) {
   return (
     <ul className="steps">
-      {steps.map(([product, note], index) => {
-        const checked = isStepDone(completedSteps, category, dayIndex, phase, index, nowIso);
+      {steps.map((s) => {
+        const checked = isStepDone(completedSteps, category, dayIndex, s.id, nowIso);
         return (
-          <li key={`${product}-${index}`}>
+          <li key={s.id}>
             <label className="step-check">
               <input
                 type="checkbox"
-                aria-label={product}
+                aria-label={s.product}
                 checked={checked}
-                onChange={() => onToggleStep(category, dayIndex, phase, index)}
+                onChange={() => onToggleStep(category, dayIndex, s.id)}
               />
               <span className="step-check-box" aria-hidden="true" />
             </label>
             <div className="icon-badge">
-              <Icon icon={pickIcon(product)} />
+              <Icon icon={pickIcon(s.product)} />
             </div>
             <div>
-              <strong>{product}</strong>
-              {note ? <span className="note">{note}</span> : null}
+              <strong>{s.product}</strong>
+              {s.note ? <span className="note">{s.note}</span> : null}
             </div>
           </li>
         );
@@ -102,25 +100,24 @@ const PANEL_COPY: Record<
 
 export default function DayPanel({
   category,
+  state,
   dayIndex,
-  programStartDate,
-  completedSteps,
   onToggleStep,
   now = new Date(),
 }: {
   category: Category;
+  state: AppState;
   dayIndex: number;
-  programStartDate: string;
-  completedSteps: CompletedStep[];
   onToggleStep: ToggleStep;
   now?: Date;
 }) {
   const nowIso = todayIso(now);
-  const week = programWeek(programStartDate, nowIso);
-  const day = resolveDay(category, dayIndex, week);
+  const week = programWeek(state.programStartDate, nowIso);
+  const day = resolveDayForState(state, category, dayIndex, week);
+  const completedSteps = state.completedSteps;
 
-  if (isHairDay(day)) {
-    const c = phaseCompletion(completedSteps, programStartDate, category, dayIndex, "steps", nowIso);
+  if (day.kind === "hair") {
+    const c = phaseCompletion(state, category, dayIndex, "steps", nowIso);
     return (
       <div className="panel active">
         <div className="badge-row">
@@ -132,7 +129,6 @@ export default function DayPanel({
             steps={day.steps}
             category={category}
             dayIndex={dayIndex}
-            phase="steps"
             completedSteps={completedSteps}
             nowIso={nowIso}
             onToggleStep={onToggleStep}
@@ -143,8 +139,8 @@ export default function DayPanel({
   }
 
   const copy = category === "body" ? PANEL_COPY.body : PANEL_COPY.face;
-  const am = phaseCompletion(completedSteps, programStartDate, category, dayIndex, "am", nowIso);
-  const pm = phaseCompletion(completedSteps, programStartDate, category, dayIndex, "pm", nowIso);
+  const am = phaseCompletion(state, category, dayIndex, "am", nowIso);
+  const pm = phaseCompletion(state, category, dayIndex, "pm", nowIso);
   return (
     <div className="panel active">
       <div className="badge-row">
@@ -159,7 +155,6 @@ export default function DayPanel({
           steps={day.am}
           category={category}
           dayIndex={dayIndex}
-          phase="am"
           completedSteps={completedSteps}
           nowIso={nowIso}
           onToggleStep={onToggleStep}
@@ -170,7 +165,6 @@ export default function DayPanel({
           steps={day.pm}
           category={category}
           dayIndex={dayIndex}
-          phase="pm"
           completedSteps={completedSteps}
           nowIso={nowIso}
           onToggleStep={onToggleStep}

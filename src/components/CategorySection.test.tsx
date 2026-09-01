@@ -3,11 +3,12 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import CategorySection from "./CategorySection";
 import { routine } from "../shared/routine";
+import { makeDefaultState } from "../shared/defaults";
 
 const stateProps = {
-  programStartDate: "2026-08-24",
-  completedSteps: [],
+  state: makeDefaultState(new Date("2026-08-24T00:00:00Z")),
   onToggleStep: () => {},
+  editContent: () => {},
 };
 
 describe("CategorySection", () => {

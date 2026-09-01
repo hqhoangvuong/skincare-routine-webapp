@@ -1,3 +1,5 @@
+import { weekdayIndexOfIso } from "./date";
+
 export type Category = "face" | "hair" | "body";
 
 export const CATEGORIES: readonly Category[] = ["face", "hair", "body"];
@@ -33,8 +35,24 @@ const STEP_PHASES: readonly StepPhase[] = ["am", "pm", "steps"];
 export type CompletedStep = {
   date: string; // ISO date of the routine day this step belongs to
   category: Category;
-  phase: StepPhase;
-  stepIndex: number;
+  stepId: string;
+};
+
+export type StoredStep = { id: string; step: RoutineStep };
+
+export type StoredFaceOrBodyDay = {
+  short: string; full: string; focus: string;
+  am: StoredStep[]; pm: StoredStep[];
+};
+export type StoredHairDay = {
+  short: string; full: string; type: string;
+  steps: StoredStep[];
+};
+export type StoredDay = StoredFaceOrBodyDay | StoredHairDay;
+
+export type CategoryOverride = {
+  products: string[];
+  days: StoredDay[];
 };
 
 export type FaceOrBodyDay = {
@@ -65,13 +83,21 @@ export function isHairDay(day: DayData): day is HairDay {
 }
 
 export type AppState = {
-  version: 2;
+  version: 3;
   /** ISO timestamp of the last local mutation; drives mount-time reconciliation. */
   updatedAt: string;
   /** ISO date, e.g. "2026-08-24". */
   programStartDate: string;
   /** Every checked step, as a dated log. Unordered; treated as a set. No cap. */
   completedSteps: CompletedStep[];
+  /** Present only for categories the user has edited. */
+  overrides?: {
+    face?: CategoryOverride;
+    hair?: CategoryOverride;
+    body?: CategoryOverride;
+  };
+  /** Monotonic counter for new-step ids. Absent = 0. */
+  stepSeq?: number;
   ui: {
     activeCategory: Category;
     activeDayByCategory: Record<Category, number>;
@@ -94,7 +120,7 @@ function isActiveDayByCategory(value: unknown): value is Record<Category, number
   return CATEGORIES.every((category) => typeof value[category] === "number");
 }
 
-function isStepPhase(value: unknown): value is StepPhase {
+export function isStepPhase(value: unknown): value is StepPhase {
   return STEP_PHASES.some((phase) => phase === value);
 }
 
@@ -103,8 +129,7 @@ export function isCompletedStep(value: unknown): value is CompletedStep {
   return (
     typeof value.date === "string" &&
     isCategory(value.category) &&
-    isStepPhase(value.phase) &&
-    typeof value.stepIndex === "number"
+    typeof value.stepId === "string"
   );
 }
 
@@ -146,6 +171,47 @@ export function isRoutineStep(value: unknown): value is RoutineStep {
   return isStepTuple(value) || isConditionalStep(value);
 }
 
+export function isStoredStep(value: unknown): value is StoredStep {
+  if (!isRecord(value)) return false;
+  return typeof value.id === "string" && isRoutineStep(value.step);
+}
+
+function isStoredDay(value: unknown): value is StoredDay {
+  if (!isRecord(value)) return false;
+  if (typeof value.short !== "string" || typeof value.full !== "string") return false;
+  if ("steps" in value) {
+    return (
+      typeof value.type === "string" &&
+      Array.isArray(value.steps) &&
+      value.steps.every(isStoredStep)
+    );
+  }
+  return (
+    typeof value.focus === "string" &&
+    Array.isArray(value.am) && value.am.every(isStoredStep) &&
+    Array.isArray(value.pm) && value.pm.every(isStoredStep)
+  );
+}
+
+export function isCategoryOverride(value: unknown): value is CategoryOverride {
+  if (!isRecord(value)) return false;
+  return (
+    Array.isArray(value.products) &&
+    value.products.every((entry: unknown) => typeof entry === "string") &&
+    Array.isArray(value.days) &&
+    value.days.length === 7 &&
+    value.days.every(isStoredDay)
+  );
+}
+
+function isOverrides(value: unknown): value is AppState["overrides"] {
+  if (!isRecord(value)) return false;
+  for (const key of CATEGORIES) {
+    if (key in value && !isCategoryOverride(value[key])) return false;
+  }
+  return true;
+}
+
 /**
  * Validates an untrusted blob parsed from JSON. Lives here, beside the type it
  * guards, so the frontend's localStorage mirror and the Worker's PUT handler
@@ -160,11 +226,13 @@ export function isAppState(value: unknown): value is AppState {
   if (typeof value !== "object" || value === null) return false;
   const v = value as Record<string, unknown>;
   return (
-    v.version === 2 &&
+    v.version === 3 &&
     typeof v.updatedAt === "string" &&
     typeof v.programStartDate === "string" &&
     Array.isArray(v.completedSteps) &&
     v.completedSteps.every(isCompletedStep) &&
+    (v.overrides === undefined || isOverrides(v.overrides)) &&
+    (v.stepSeq === undefined || typeof v.stepSeq === "number") &&
     isRecord(v.ui) &&
     isCategory(v.ui.activeCategory) &&
     isActiveDayByCategory(v.ui.activeDayByCategory)
@@ -194,6 +262,41 @@ function isV1State(value: unknown): value is V1State {
   );
 }
 
+type V2CompletedStep = {
+  date: string; category: Category; phase: "am" | "pm" | "steps"; stepIndex: number;
+};
+type V2State = {
+  version: 2;
+  updatedAt: string;
+  programStartDate: string;
+  completedSteps: V2CompletedStep[];
+  ui: { activeCategory: Category; activeDayByCategory: Record<Category, number> };
+};
+
+/** Frozen snapshot of the v2 shape. Must NOT track future isAppState changes. */
+function isV2CompletedStep(value: unknown): value is V2CompletedStep {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.date === "string" &&
+    isCategory(value.category) &&
+    (value.phase === "am" || value.phase === "pm" || value.phase === "steps") &&
+    typeof value.stepIndex === "number"
+  );
+}
+function isV2State(value: unknown): value is V2State {
+  if (!isRecord(value)) return false;
+  return (
+    value.version === 2 &&
+    typeof value.updatedAt === "string" &&
+    typeof value.programStartDate === "string" &&
+    Array.isArray(value.completedSteps) &&
+    value.completedSteps.every(isV2CompletedStep) &&
+    isRecord(value.ui) &&
+    isCategory(value.ui.activeCategory) &&
+    isActiveDayByCategory(value.ui.activeDayByCategory)
+  );
+}
+
 /**
  * Upgrades an untrusted stored blob to the current `AppState` shape, or returns
  * null if it is neither a current state nor a recognisable older one. The one
@@ -202,14 +305,30 @@ function isV1State(value: unknown): value is V1State {
  */
 export function migrate(value: unknown): AppState | null {
   if (isAppState(value)) return value;
+
+  if (isV2State(value)) {
+    return {
+      version: 3,
+      updatedAt: value.updatedAt,
+      programStartDate: value.programStartDate,
+      completedSteps: value.completedSteps.map((c) => ({
+        date: c.date,
+        category: c.category,
+        stepId: `${c.category}.${weekdayIndexOfIso(c.date)}.${c.phase}.${c.stepIndex}`,
+      })),
+      ui: value.ui,
+    };
+  }
+
   if (isV1State(value)) {
     return {
-      version: 2,
+      version: 3,
       updatedAt: value.updatedAt,
       programStartDate: value.programStartDate,
       completedSteps: [],
       ui: value.ui,
     };
   }
+
   return null;
 }

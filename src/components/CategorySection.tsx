@@ -2,8 +2,8 @@ import Gallery from "./Gallery";
 import WeekProgress from "./WeekProgress";
 import DayTabs from "./DayTabs";
 import DayPanel from "./DayPanel";
-import { routine } from "../shared/routine";
-import type { Category, CompletedStep, StepPhase } from "../shared/types";
+import { getCategoryData } from "../shared/content";
+import type { AppState, Category } from "../shared/types";
 
 const THEME_CLASS: Record<Category, string> = {
   face: "",
@@ -276,20 +276,24 @@ const GALLERY_TITLE: Record<Category, string> = {
 
 export default function CategorySection({
   category,
+  state,
   activeDay,
   onSelectDay,
-  programStartDate,
-  completedSteps,
   onToggleStep,
+  editContent,
 }: {
   category: Category;
+  state: AppState;
   activeDay: number;
   onSelectDay: (index: number) => void;
-  programStartDate: string;
-  completedSteps: CompletedStep[];
-  onToggleStep: (category: Category, dayIndex: number, phase: StepPhase, stepIndex: number) => void;
+  onToggleStep: (category: Category, dayIndex: number, stepId: string) => void;
+  editContent: (mutate: (state: AppState) => AppState) => void;
 }) {
-  const data = routine[category];
+  // Not called yet — no editing UI in this unit (Task 10 wires it up). Threaded
+  // through now so the prop shape/context contract is stable ahead of that.
+  void editContent;
+
+  const data = getCategoryData(state, category);
   const Hero = HERO[category];
   const Extras = EXTRAS[category];
 
@@ -300,17 +304,12 @@ export default function CategorySection({
       <h2 className="section-title">{GALLERY_TITLE[category]}</h2>
       <Gallery products={data.products} />
 
-      <WeekProgress
-        category={category}
-        programStartDate={programStartDate}
-        completedSteps={completedSteps}
-      />
+      <WeekProgress category={category} state={state} />
       <DayTabs days={data.days} activeDay={activeDay} onSelect={onSelectDay} />
       <DayPanel
         category={category}
+        state={state}
         dayIndex={activeDay}
-        programStartDate={programStartDate}
-        completedSteps={completedSteps}
         onToggleStep={onToggleStep}
       />
 

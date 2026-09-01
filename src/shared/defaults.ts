@@ -3,7 +3,7 @@ import type { AppState } from "./types";
 
 export function makeDefaultState(now: Date = new Date()): AppState {
   return {
-    version: 2,
+    version: 3,
     updatedAt: now.toISOString(),
     programStartDate: todayIso(now),
     completedSteps: [],
