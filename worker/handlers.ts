@@ -1,5 +1,5 @@
 import { makeDefaultState } from "../src/shared/defaults";
-import { isAppState } from "../src/shared/types";
+import { isAppState, migrate } from "../src/shared/types";
 
 export const STATE_KEY = "state:default";
 
@@ -49,10 +49,25 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   if (request.method === "GET") {
     const stored = await env.STATE.get(STATE_KEY);
     if (stored) {
-      return new Response(stored, {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders(env) },
-      });
+      let parsed: unknown = null;
+      try {
+        parsed = JSON.parse(stored);
+      } catch {
+        parsed = null;
+      }
+      const migrated = migrate(parsed);
+      if (migrated) {
+        const serialized = JSON.stringify(migrated);
+        if (serialized !== stored) {
+          await env.STATE.put(STATE_KEY, serialized);
+        }
+        return new Response(serialized, {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders(env) },
+        });
+      }
+      // Unrecognisable blob: fall through and reseed, matching the
+      // "repair by overwrite" philosophy the frontend uses for a bad body.
     }
     // Seed and persist, so programStartDate is fixed from the first visit.
     const seeded = makeDefaultState();

@@ -53,6 +53,31 @@ describe("GET /state", () => {
     const body = await (await handleRequest(new Request("https://w.test/state"), env)).json();
     expect(body.programStartDate).toBe("2026-01-01");
   });
+
+  it("upgrades and persists a stored v1 blob", async () => {
+    const v1 = {
+      version: 1,
+      updatedAt: "2026-08-30T10:00:00.000Z",
+      programStartDate: "2026-01-01",
+      ui: { activeCategory: "face", activeDayByCategory: { face: 0, hair: 0, body: 0 } },
+    };
+    await env.STATE.put(STATE_KEY, JSON.stringify(v1));
+    const body = await (await handleRequest(new Request("https://w.test/state"), env)).json();
+    expect(body.version).toBe(2);
+    expect(body.completedSteps).toEqual([]);
+    expect(body.programStartDate).toBe("2026-01-01");
+    // persisted, not just returned
+    expect(JSON.parse(String(env.STATE.store.get(STATE_KEY))).version).toBe(2);
+  });
+
+  it("reseeds when the stored blob is unrecognisable", async () => {
+    await env.STATE.put(STATE_KEY, JSON.stringify({ nonsense: true }));
+    const response = await handleRequest(new Request("https://w.test/state"), env);
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.version).toBe(2);
+    expect(JSON.parse(String(env.STATE.store.get(STATE_KEY))).version).toBe(2);
+  });
 });
 
 describe("PUT /state", () => {
@@ -89,6 +114,12 @@ describe("PUT /state", () => {
 
   it("rejects a body that is not a version 2 state", async () => {
     const response = await handleRequest(putRequest({ hello: "world" }, "secret"), env);
+    expect(response.status).toBe(400);
+  });
+
+  it("rejects a v2 body with a malformed completedSteps", async () => {
+    const state = { ...makeDefaultState(), completedSteps: [{ date: "x", category: "face", phase: "am" }] };
+    const response = await handleRequest(putRequest(state, "secret"), env);
     expect(response.status).toBe(400);
   });
 
