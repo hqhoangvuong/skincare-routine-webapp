@@ -107,9 +107,21 @@ worker/
   per-category reset, which now lives inside `src/components/CustomizationsStrip.tsx` (rendered in edit mode
   when `state.overrides[category]` exists — a change summary + jump links + the reset). `content.ts#isStepEdited(state,
   category, dayIndex, phase, id)` returns `"modified" | "added" | null` and drives the per-step edit tag;
-  it compares positionally against `routine.ts`, so a `removeStep` that shifts indices can mislabel a step
-  until Wave 2's stable ordering (never a crash, never a data change). The edit pill carries `data-edited`
+  it compares each step against the shipped default at its original id-encoded index, so reorder and
+  sibling-delete leave untouched steps unmarked. The edit pill carries `data-edited`
   and goes `position: sticky` while editing.
+- **Reorder & day-header editing (usability Wave 2):** `content.ts#moveStep(state,
+  category, dayIndex, phase, fromIndex, toIndex)` reorders a step within a phase
+  (ids ride along on the `StoredStep`, so `completedSteps` and `isStepEdited`
+  stay correct); a no-dependency `src/hooks/useDragSort.ts` drives it from a
+  `.drag-handle` per row (native Pointer Events, plus `ArrowUp`/`ArrowDown` on
+  the handle). `content.ts#updateDayMeta` / `setFocusPrefix` / `getFocusPrefix`
+  edit a day's `full` name and its `focus` (face/body) or `type` (hair), plus
+  the face-only category-level `focusPrefix` (`CategoryOverride.focusPrefix?:
+  string` — an additive optional field; `AppState` is still `version: 3`, no
+  migration). `isStepEdited` now compares each step against the shipped default
+  at its **original** (id-encoded) index, not its current array position — so a
+  reorder or a sibling delete never mislabels an untouched step.
 - **A step is a `RoutineStep`: a plain `[product, note]` tuple, or a `ConditionalStep`.** Two conditional
   kinds: `threshold` (`{ kind, untilWeek, before, from }` — `before` for program-weeks `1..untilWeek`,
   `from` after) and `cycle` (`{ kind, length: 2|4, weeks }` — indexed by `(week-1) % length`).
