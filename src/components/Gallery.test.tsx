@@ -17,19 +17,22 @@ describe("Gallery", () => {
     const inputs = screen.getAllByRole("textbox");
     expect(inputs).toHaveLength(2);
     expect(inputs[0]).toHaveValue("Cleanser");
+    expect(screen.getByRole("textbox", { name: "Tên sản phẩm 1" })).toBe(inputs[0]);
 
     await userEvent.type(inputs[1], "!");
     expect(onEdit.onRename).toHaveBeenLastCalledWith(1, "Toner!");
 
-    await userEvent.click(screen.getAllByRole("button", { name: /xoá sản phẩm/i })[0]);
+    // the remove button names the product it removes when the name is non-empty
+    await userEvent.click(screen.getByRole("button", { name: "Xoá Cleanser" }));
     expect(onEdit.onRemove).toHaveBeenCalledWith(0);
 
     await userEvent.click(screen.getByRole("button", { name: /thêm sản phẩm/i }));
     expect(onEdit.onAdd).toHaveBeenCalled();
   });
 
-  it("shows a placeholder for an empty product name", () => {
+  it("shows a placeholder and a positional remove label for an empty product name", () => {
     render(<Gallery products={[""]} editing onEdit={{ onRename: vi.fn(), onRemove: vi.fn(), onAdd: vi.fn() }} />);
     expect(screen.getByPlaceholderText("Sản phẩm chưa đặt tên")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Xoá sản phẩm 1" })).toBeInTheDocument();
   });
 });

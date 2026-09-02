@@ -81,10 +81,16 @@ worker/
   and the theme class differ.
 - **Content is data, not markup.** `src/shared/routine.ts` exports `faceProducts`/`faceDays`,
   `hairProducts`/`hairDays`, `bodyProducts`/`bodyDays`, assembled into `routine: Record<Category,
-  CategoryData>`. Face and body days have `{ am: StepTuple[], pm: StepTuple[] }`; hair days have a flat
-  `steps: StepTuple[]`. A `StepTuple` is `[productName, note]`, where `note` is `""` when there isn't one.
+  CategoryData>`. Face and body days have `{ am: RoutineStep[], pm: RoutineStep[] }`; hair days have a
+  flat `steps: RoutineStep[]`. A `RoutineStep` is either a plain `[productName, note]` `StepTuple` (where
+  `note` is `""` when there isn't one) or a `ConditionalStep` — see the `RoutineStep` bullet below for the
+  `threshold`/`cycle` forms.
   To change what's shown on a given day, edit the relevant entry in `faceDays`/`hairDays`/`bodyDays` in
-  `routine.ts` — no component changes needed. `DayPanel.tsx` holds the per-category copy (card titles,
+  `routine.ts` — no component changes needed. This only affects categories with **no**
+  `overrides[category]` entry: once the user has edited a category in-app (copy-on-write is
+  whole-category), that category renders entirely from `AppState.overrides[category]`, and a `routine.ts`
+  change to it stays invisible until she hits "Đặt lại theo mặc định" (which discards all her edits) or
+  the data is migrated. `DayPanel.tsx` holds the per-category copy (card titles,
   subtitles, and the face-only "Trọng tâm tối nay: " badge prefix) in one `PANEL_COPY` lookup.
 - **Per-user edits live in `AppState.overrides`, resolved by `src/shared/content.ts`.** `routine.ts` is
   the shipped default; the first edit to a category (via the in-app editor) copies that category's
@@ -99,9 +105,11 @@ worker/
   `from` after) and `cycle` (`{ kind, length: 2|4, weeks }` — indexed by `(week-1) % length`).
   `resolveStep(step, week)` in `src/shared/schedule.ts` collapses a `RoutineStep` to a `StepTuple`;
   `resolveDayForState` in `content.ts` maps a whole day. The two week-conditional face steps
-  (Wednesday-AM Vitamin C→Niacinamide, Sunday-PM 2-week mask rotation) are authored directly as
-  conditionals in `routine.ts` — `schedule.ts` no longer hardcodes them and no longer imports
-  `routine.ts`. `week` is the 1-based program week from `programWeek()`; `programWeek` /
+  (Wednesday-AM Vitamin C→Niacinamide, Sunday-PM mask rotation — implemented as a `cycle` of
+  `length: 2`, even though the user's preserved note strings frame it as "chu kỳ 4 tuần"; don't
+  reconcile one to the other) are authored directly as conditionals in `routine.ts` — `schedule.ts` no
+  longer hardcodes them and no longer imports `routine.ts`. `week` is the 1-based program week from
+  `programWeek()`; `programWeek` /
   `weekCyclePosition` (`src/shared/date.ts`) are calendar Mon–Sun weeks from `programStartDate`.
   `src/shared/progress.ts` has the check-off math (`toggleCompletedStep`, `isStepDone`, `phaseCompletion`,
   `dayCompletion`).
@@ -156,9 +164,10 @@ and flows through one path:
   `AppState.stepSeq`. Because a conditional step keeps one id across weeks, a check-off survives the
   week-2→3 product swap (the old positional-identity trade-off is gone). The visible checkboxes are the
   entries whose `date` falls in the current Mon–Sun week; older entries stay in the log for a later stats
-  view. `AppState` is `version: 3`; `migrate()` in `src/shared/types.ts` chains v1→v3 (adds
-  `completedSteps: []`) and v2→v3 (remapping each old `{ phase, stepIndex }` to
-  `${category}.${weekdayIndexOfIso(date)}.${phase}.${stepIndex}`), and is called on every untrusted read —
+  view. `AppState` is `version: 3`; `migrate()` in `src/shared/types.ts` has independent arms for v3
+  (passthrough), v2→v3 (remapping each old `{ phase, stepIndex }` to
+  `${category}.${weekdayIndexOfIso(date)}.${phase}.${stepIndex}`), and v1→v3 (adds `completedSteps: []`)
+  — not a v1→v2→v3 chain — and is called on every untrusted read —
   the `localStorage` mirror, `fetchRemote`, and the Worker's `GET` (which also persists the upgrade). Add
   future migrations as new arms; keep `isV1State` and `isV2State` frozen snapshots.
 
@@ -269,8 +278,9 @@ sense once the site is live; don't treat leaking it as more than a minor issue.
 
 This is sub-project 1 of a five-part plan, and it is deployed and verified live (2026-09-01).
 Progress tracking (sub-project 2) now exists: per-step checkboxes, the `WeekProgress` strip above the day
-tabs, and the `schedule.ts` resolver for the week‑1/2‑vs‑week‑3+ Niacinamide rule and the 2-week mask
-rotation — with `completedSteps` retained as a full dated log. Still deferred within it: streaks and a
+tabs, and the `schedule.ts` resolver for the week‑1/2‑vs‑week‑3+ Niacinamide rule and the mask rotation
+(implemented as a `cycle` of `length: 2`, though the user's preserved note strings frame it as "chu kỳ 4
+tuần") — with `completedSteps` retained as a full dated log. Still deferred within it: streaks and a
 multi-week history view over that log.
 The in-app content editor (sub-project 3) now exists: `AppState.overrides` + `src/shared/content.ts` as
 the read/mutate seam + `RoutineStep` variants in `types.ts`, driven by an inline per-category pencil

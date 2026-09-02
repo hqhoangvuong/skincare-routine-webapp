@@ -68,14 +68,18 @@ describe("CategorySection", () => {
     expect(screen.getByRole("button", { name: /đặt lại theo mặc định/i })).toBeInTheDocument();
   });
 
-  it("exits edit mode when the category prop changes (remount via key in App)", () => {
-    // App.tsx remounts CategorySection with key={activeCategory}; simulate by
-    // re-rendering with a different key and asserting the pencil is back to
-    // aria-pressed=false. (Covered structurally: editing is local useState.)
+  it("exits edit mode when the category prop changes (remount via key in App)", async () => {
+    // App.tsx remounts CategorySection with key={activeCategory}; a key change
+    // must discard the local `editing` useState. Toggle it on, then remount
+    // under a new key and assert the pencil is back to aria-pressed=false.
+    const pencil = () => screen.getByRole("button", { name: /chỉnh sửa nội dung/i });
     const { rerender } = render(
       <CategorySection key="face" category="face" activeDay={0} onSelectDay={() => {}} {...stateProps} />,
     );
+    expect(pencil()).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(pencil());
+    expect(pencil()).toHaveAttribute("aria-pressed", "true");
     rerender(<CategorySection key="hair" category="hair" activeDay={0} onSelectDay={() => {}} {...stateProps} />);
-    expect(screen.getByRole("button", { name: /chỉnh sửa nội dung/i })).toHaveAttribute("aria-pressed", "false");
+    expect(pencil()).toHaveAttribute("aria-pressed", "false");
   });
 });

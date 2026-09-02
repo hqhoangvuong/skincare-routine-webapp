@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { isStepTuple, isThresholdVariant, type RoutineStep, type StepTuple } from "../shared/types";
 
 type Kind = "plain" | "threshold" | "cycle";
@@ -52,11 +53,24 @@ export default function VariantEditor({
   const kind = kindOf(value);
   const base = firstTuple(value);
 
+  // The threshold week field holds a raw string locally so a half-typed or
+  // cleared value isn't snapped to a number under the user's cursor; the
+  // coerced number is only pushed to the parent on blur.
+  const thresholdUntilWeek =
+    !isStepTuple(value) && value.kind === "threshold" ? value.untilWeek : null;
+  const [untilWeekDraft, setUntilWeekDraft] = useState(
+    thresholdUntilWeek === null ? "" : String(thresholdUntilWeek),
+  );
+  useEffect(() => {
+    if (thresholdUntilWeek !== null) setUntilWeekDraft(String(thresholdUntilWeek));
+  }, [thresholdUntilWeek]);
+
   function switchKind(next: Kind): void {
     if (next === kind) return;
     if (next === "plain") onChange(base);
-    else if (next === "threshold") onChange({ kind: "threshold", untilWeek: 2, before: base, from: base });
-    else onChange({ kind: "cycle", length: 2, weeks: [base, base] });
+    else if (next === "threshold")
+      onChange({ kind: "threshold", untilWeek: 2, before: [...base], from: [...base] });
+    else onChange({ kind: "cycle", length: 2, weeks: [[...base], [...base]] });
   }
 
   return (
@@ -79,8 +93,8 @@ export default function VariantEditor({
         <>
           <label>
             Đổi từ tuần thứ
-            <input type="number" min={1} value={value.untilWeek}
-              onChange={(e) => onChange({ ...value, untilWeek: coerceWeek(e.target.value) })}
+            <input type="number" min={1} value={untilWeekDraft}
+              onChange={(e) => setUntilWeekDraft(e.target.value)}
               onBlur={(e) => onChange({ ...value, untilWeek: coerceWeek(e.target.value) })} />
           </label>
           <TupleFields

@@ -24,11 +24,16 @@ export default function Gallery({
             <Icon icon={pickIcon(product)} size={34} />
             <input
               type="text"
+              aria-label={`Tên sản phẩm ${index + 1}`}
               value={product}
               placeholder="Sản phẩm chưa đặt tên"
               onChange={(e) => onEdit.onRename(index, e.target.value)}
             />
-            <button type="button" aria-label={`Xoá sản phẩm ${index + 1}`} onClick={() => onEdit.onRemove(index)}>
+            <button
+              type="button"
+              aria-label={product ? `Xoá ${product}` : `Xoá sản phẩm ${index + 1}`}
+              onClick={() => onEdit.onRemove(index)}
+            >
               ×
             </button>
           </div>

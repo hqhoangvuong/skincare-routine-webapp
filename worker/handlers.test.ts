@@ -70,6 +70,39 @@ describe("GET /state", () => {
     expect(JSON.parse(String(env.STATE.store.get(STATE_KEY))).version).toBe(3);
   });
 
+  it("upgrades and persists a stored v2 blob, idempotently on a repeat GET", async () => {
+    const v2 = {
+      version: 2,
+      updatedAt: "2026-08-30T10:00:00.000Z",
+      programStartDate: "2026-08-24",
+      completedSteps: [
+        { date: "2026-08-26", category: "face", phase: "am", stepIndex: 0 }, // Wednesday
+        { date: "2026-08-25", category: "hair", phase: "steps", stepIndex: 1 }, // Tuesday
+      ],
+      ui: { activeCategory: "face", activeDayByCategory: { face: 0, hair: 0, body: 0 } },
+    };
+    await env.STATE.put(STATE_KEY, JSON.stringify(v2));
+
+    const body = await (await handleRequest(new Request("https://w.test/state"), env)).json();
+    expect(body.version).toBe(3);
+    // each { phase, stepIndex } remapped to `${category}.${weekdayIndexOfIso(date)}.${phase}.${stepIndex}`
+    expect(body.completedSteps).toEqual([
+      { date: "2026-08-26", category: "face", stepId: "face.2.am.0" }, // Wed => weekday 2
+      { date: "2026-08-25", category: "hair", stepId: "hair.1.steps.1" }, // Tue => weekday 1
+    ]);
+
+    // the migrated v3 blob is what is now in KV
+    const afterFirst = env.STATE.store.get(STATE_KEY);
+    expect(JSON.parse(String(afterFirst)).version).toBe(3);
+    expect(JSON.parse(String(afterFirst))).toEqual(body);
+
+    // a second GET returns/stores the exact same bytes — no reseed, no re-write churn
+    const body2 = await (await handleRequest(new Request("https://w.test/state"), env)).json();
+    expect(body2).toEqual(body);
+    expect(env.STATE.store.get(STATE_KEY)).toBe(afterFirst);
+    expect(env.STATE.store.size).toBe(1);
+  });
+
   it("reseeds when the stored blob is not valid JSON", async () => {
     await env.STATE.put(STATE_KEY, "{not json");
     const response = await handleRequest(new Request("https://w.test/state"), env);
