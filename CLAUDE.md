@@ -100,6 +100,16 @@ worker/
   never `routine[category]` directly. `content.ts` also holds the eight pure mutation helpers
   (`addProduct`, `renameProduct`, `removeProduct`, `addStep`, `updateStepTuple`, `removeStep`,
   `setStepVariant`, `resetCategory`) the editor calls via `useAppState().editContent(mutate)`.
+- **Editor input & feedback plumbing (usability Wave 1):** editor text fields use `src/hooks/useBufferedText.ts`
+  — a local draft that commits via `editContent(...)` only on blur or on unmount-while-focused, so typing no
+  longer fires a state write per keystroke. Destructive `×` controls in the editor are wrapped in
+  `src/components/ConfirmRemove.tsx` (two-tap `Xoá` / `Huỷ`); `window.confirm` is used only for the
+  per-category reset, which now lives inside `src/components/CustomizationsStrip.tsx` (rendered in edit mode
+  when `state.overrides[category]` exists — a change summary + jump links + the reset). `content.ts#isStepEdited(state,
+  category, dayIndex, phase, id)` returns `"modified" | "added" | null` and drives the per-step edit tag;
+  it compares positionally against `routine.ts`, so a `removeStep` that shifts indices can mislabel a step
+  until Wave 2's stable ordering (never a crash, never a data change). The edit pill carries `data-edited`
+  and goes `position: sticky` while editing.
 - **A step is a `RoutineStep`: a plain `[product, note]` tuple, or a `ConditionalStep`.** Two conditional
   kinds: `threshold` (`{ kind, untilWeek, before, from }` — `before` for program-weeks `1..untilWeek`,
   `from` after) and `cycle` (`{ kind, length: 2|4, weeks }` — indexed by `(week-1) % length`).
