@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import DayPanel from "./DayPanel";
 import { makeDefaultState } from "../shared/defaults";
-import { stepId } from "../shared/content";
+import { stepId, updateStepTuple } from "../shared/content";
 import type { AppState } from "../shared/types";
 
 const WEEK1_NOW = new Date("2026-08-26T03:00:00Z"); // Wednesday, program week 1
@@ -50,6 +50,18 @@ describe("DayPanel", () => {
     expect(
       screen.getByRole("checkbox", { name: "Serum Niacinamide 15% — Cocoon" }),
     ).toBeInTheDocument();
+  });
+
+  it("read mode renders overridden product content, not the shipped default", () => {
+    const overridden = updateStepTuple(
+      stateWithCompleted(), "face", 2, "am", stepId("face", 2, "am", 0),
+      "Sữa rửa mặt tuỳ chỉnh", "",
+    );
+    render(
+      <DayPanel category="face" dayIndex={2} state={overridden} onToggleStep={() => {}} now={WEEK1_NOW} />,
+    );
+    expect(screen.getByText("Sữa rửa mặt tuỳ chỉnh")).toBeInTheDocument();
+    expect(screen.queryByText("Rửa mặt nhẹ bằng nước ấm")).toBeNull();
   });
 
   it("renders a checkbox per step and calls onToggleStep with the slot", async () => {

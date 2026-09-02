@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { makeDefaultState } from "./defaults";
 import { dayCompletion, isStepDone, phaseCompletion, toggleCompletedStep } from "./progress";
-import { stepId } from "./content";
+import { addStep, stepId } from "./content";
 import type { AppState, CompletedStep } from "./types";
 
 const base: AppState = makeDefaultState(new Date("2026-08-24T00:00:00Z")); // programStartDate 2026-08-24 (Mon, week 1)
@@ -42,6 +42,16 @@ describe("phaseCompletion / dayCompletion", () => {
     expect(face.total).toBeGreaterThan(5);
     const hair = dayCompletion(base, "hair", 1, "2026-08-25"); // Tuesday
     expect(hair.total).toBe(2);
+  });
+
+  it("counts an extra step appended to an overridden phase in the total", () => {
+    // one extra step appended to face Wednesday AM via the real mutation helper
+    const withExtra = addStep(base, "face", 2, "am");
+    const baseTotal = phaseCompletion(base, "face", 2, "am", NOW).total;
+    const overTotal = phaseCompletion(withExtra, "face", 2, "am", NOW).total;
+    expect(overTotal).toBe(baseTotal + 1);
+    // and the base state is unchanged (no override leaked in)
+    expect(base.overrides).toBeUndefined();
   });
 
   it("a check-off on a conditional step stays counted across the week boundary", () => {

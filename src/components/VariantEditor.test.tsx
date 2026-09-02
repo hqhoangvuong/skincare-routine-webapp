@@ -37,6 +37,31 @@ describe("VariantEditor", () => {
     expect(next.from[0]).toBe("B!");
   });
 
+  it("threshold: untilWeek is coerced to the parent only on blur, not per keystroke", async () => {
+    const value: RoutineStep = { kind: "threshold", untilWeek: 2, before: ["A", ""], from: ["B", ""] };
+    const onChange = vi.fn();
+    render(<VariantEditor value={value} onChange={onChange} />);
+    const week = screen.getByLabelText("Đổi từ tuần thứ");
+    await userEvent.clear(week);
+    await userEvent.type(week, "3");
+    expect(week).toHaveValue(3);
+    expect(onChange).not.toHaveBeenCalled(); // no snap-to-2 while typing/clearing
+    await userEvent.tab(); // blur commits
+    expect(last(onChange)).toEqual({
+      kind: "threshold", untilWeek: 3, before: ["A", ""], from: ["B", ""],
+    });
+  });
+
+  it("switches plain -> threshold without aliasing the tuple across branches", async () => {
+    const onChange = vi.fn();
+    render(<VariantEditor value={["Serum", "n"]} onChange={onChange} />);
+    await userEvent.selectOptions(screen.getByLabelText("Kiểu đổi theo tuần"), "threshold");
+    const next = last(onChange);
+    if (Array.isArray(next) || next.kind !== "threshold") throw new Error("expected threshold");
+    expect(next.before).not.toBe(next.from); // distinct array objects
+    expect(next.before).toEqual(next.from);
+  });
+
   it("cycle: switching length 2 -> 4 pads weeks to 4", async () => {
     const value: RoutineStep = { kind: "cycle", length: 2, weeks: [["A", ""], ["B", ""]] };
     const onChange = vi.fn();
