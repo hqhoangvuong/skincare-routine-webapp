@@ -116,7 +116,7 @@ describe("useDragSort — pointer", () => {
     expect(onReorder).toHaveBeenCalledWith(0, 1);
   });
 
-  it("a drag across two midpoints commits a single onReorder(0, 2)", () => {
+  it("a drag straight down across two midpoints commits a single onReorder(0, 2)", () => {
     const onReorder = vi.fn();
     render(<List items={rows} onReorder={onReorder} />);
     const buttons = screen.getAllByRole("button");
@@ -145,6 +145,46 @@ describe("useDragSort — pointer", () => {
     });
     expect(onReorder).toHaveBeenCalledTimes(1);
     expect(onReorder).toHaveBeenCalledWith(0, 2);
+  });
+
+  // Regression for the rect-mapping bug (whole-branch review I1): the move handler
+  // must index the snapshotted row rects by VISUAL SLOT, not by original item index.
+  // The two agree only while the local order is still the identity permutation, so a
+  // path that reverses direction after the order has already changed is what tells
+  // the correct resolver apart from the buggy one. With 4 rows (40px tall, midpoints
+  // 20/60/100/140) dragging row 0 along y = 65 → 105 → 110 → 70 → 30, the slot-indexed
+  // resolver settles the row at visual index 1 → onReorder(0, 1); the order-indexed
+  // (buggy) resolver walks it all the way back to index 0 and fires nothing.
+  it("a direction-reversing drag resolves the row by visual slot (not original index)", () => {
+    const onReorder = vi.fn();
+    const rows4: Row[] = [
+      { id: "a", label: "Alpha" },
+      { id: "b", label: "Beta" },
+      { id: "c", label: "Gamma" },
+      { id: "d", label: "Delta" },
+    ];
+    render(<List items={rows4} onReorder={onReorder} />);
+    const buttons = screen.getAllByRole("button");
+    const lis = buttons.map((b) => b.closest("li"));
+    lis.forEach((li, i) => {
+      if (!li) throw new Error("li");
+      vi.spyOn(li, "getBoundingClientRect").mockReturnValue({
+        top: i * 40, bottom: i * 40 + 40, height: 40, left: 0, right: 100, width: 100, x: 0, y: i * 40, toJSON: () => ({}),
+      });
+    });
+    act(() => {
+      buttons[0].dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientY: 10, pointerId: 1 }));
+    });
+    for (const clientY of [65, 105, 110, 70, 30]) {
+      act(() => {
+        window.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, clientY, pointerId: 1 }));
+      });
+    }
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, clientY: 30, pointerId: 1 }));
+    });
+    expect(onReorder).toHaveBeenCalledTimes(1);
+    expect(onReorder).toHaveBeenCalledWith(0, 1);
   });
 
   it("a pointerdown sets data-dragging on its row", () => {
