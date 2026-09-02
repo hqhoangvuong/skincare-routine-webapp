@@ -1,7 +1,7 @@
 import { routine } from "./routine";
 import { resolveStep } from "./schedule";
 import {
-  isHairDay,
+  isHairDay, isStepTuple,
   type AppState, type Category, type CategoryData, type CategoryOverride, type DayData,
   type RoutineStep, type StepPhase, type StepTuple, type StoredDay, type StoredStep,
 } from "./types";
@@ -11,6 +11,29 @@ export type ResolvedStep = { id: string; product: string; note: string };
 export type ResolvedDay =
   | { kind: "facebody"; short: string; full: string; focus: string; am: ResolvedStep[]; pm: ResolvedStep[] }
   | { kind: "hair"; short: string; full: string; type: string; steps: ResolvedStep[] };
+
+function tuplesEqual(a: StepTuple, b: StepTuple): boolean {
+  return a[0] === b[0] && a[1] === b[1];
+}
+
+/** Structural equality for a RoutineStep — key-order-safe, no JSON.stringify. */
+function routineStepsEqual(a: RoutineStep, b: RoutineStep): boolean {
+  const aTuple = isStepTuple(a);
+  const bTuple = isStepTuple(b);
+  if (aTuple || bTuple) return aTuple && bTuple && tuplesEqual(a, b);
+  if (a.kind !== b.kind) return false;
+  if (a.kind === "threshold" && b.kind === "threshold") {
+    return a.untilWeek === b.untilWeek && tuplesEqual(a.before, b.before) && tuplesEqual(a.from, b.from);
+  }
+  if (a.kind === "cycle" && b.kind === "cycle") {
+    return (
+      a.length === b.length &&
+      a.weeks.length === b.weeks.length &&
+      a.weeks.every((w, i) => tuplesEqual(w, b.weeks[i]))
+    );
+  }
+  return false;
+}
 
 /** The positional id for a default (un-overridden) step. */
 export function stepId(category: Category, dayIndex: number, phase: StepPhase, index: number): string {
@@ -60,6 +83,46 @@ export function getStoredDays(state: AppState, category: Category): StoredDay[] 
   const override = state.overrides?.[category];
   if (override) return override.days;
   return routine[category].days.map((day, i) => wrapDefaultDay(category, i, day));
+}
+
+/**
+ * Whether a step in an edited category differs from the shipped routine.
+ * "added" — a new-* id with no default counterpart. "modified" — a default
+ * step whose current form differs from routine.ts at the same position.
+ * null — no override for the category, id not found, or unchanged.
+ *
+ * The comparison is positional (the default at the step's current index). A
+ * prior removeStep on an earlier sibling can therefore shift a step against a
+ * different default; the marker may then be wrong (never a crash, never a data
+ * change). Wave 2's stable ordering removes this ambiguity.
+ */
+export function isStepEdited(
+  state: AppState,
+  category: Category,
+  dayIndex: number,
+  phase: StepPhase,
+  id: string,
+): "modified" | "added" | null {
+  if (!state.overrides?.[category]) return null;
+
+  const storedDay = getStoredDays(state, category)[dayIndex];
+  const stored: StoredStep[] = "steps" in storedDay
+    ? phase === "steps" ? storedDay.steps : []
+    : phase === "am" ? storedDay.am : phase === "pm" ? storedDay.pm : [];
+
+  const index = stored.findIndex((s) => s.id === id);
+  if (index === -1) return null;
+
+  if (id !== stepId(category, dayIndex, phase, index)) return "added";
+
+  const defaultDay = routine[category].days[dayIndex];
+  const defaultSteps: RoutineStep[] = isHairDay(defaultDay)
+    ? phase === "steps" ? defaultDay.steps : []
+    : phase === "am" ? defaultDay.am : phase === "pm" ? defaultDay.pm : [];
+
+  const def = defaultSteps[index];
+  if (def === undefined) return "added";
+  return routineStepsEqual(stored[index].step, def) ? null : "modified";
 }
 
 function resolve(stored: StoredStep, week: number): ResolvedStep {

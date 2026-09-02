@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { makeDefaultState } from "./defaults";
 import { routine } from "./routine";
 import {
-  getCategoryData, resolveDayForState, stepId,
+  getCategoryData, resolveDayForState, stepId, isStepEdited,
   addProduct, renameProduct, removeProduct,
   addStep, updateStepTuple, removeStep, setStepVariant, resetCategory,
 } from "./content";
@@ -108,6 +108,15 @@ describe("mutation helpers", () => {
     expect(day2.pm[day2.pm.length - 1].id).toBe("face.0.pm.new-1");
   });
 
+  it("new-step id equals `${category}.${dayIndex}.${phase}.new-${stepSeq ?? 0}`", () => {
+    const b = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
+    const seq = b.stepSeq ?? 0;
+    const s = addStep(b, "face", 4, "pm");
+    const day = s.overrides?.face?.days[4];
+    if (!day || "steps" in day) throw new Error("face day");
+    expect(day.pm[day.pm.length - 1].id).toBe(`face.4.pm.new-${seq}`);
+  });
+
   it("updateStepTuple changes product/note, keeps id", () => {
     const s = updateStepTuple(base, "face", 0, "am", "face.0.am.0", "New product", "New note");
     const day = s.overrides?.face?.days[0];
@@ -139,5 +148,48 @@ describe("mutation helpers", () => {
     const s = resetCategory(two, "face");
     expect(s.overrides?.face).toBeUndefined();
     expect(s.overrides?.hair?.products[0]).toBe("H");
+  });
+});
+
+describe("isStepEdited", () => {
+  const base = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
+
+  it("returns null for a category with no override", () => {
+    expect(isStepEdited(base, "face", 0, "am", stepId("face", 0, "am", 0))).toBeNull();
+  });
+
+  it("returns null for a step in a CoW-cloned category that was not itself changed", () => {
+    // renameProduct clones the whole face category but touches no step
+    const s = renameProduct(base, "face", 0, "Tên khác");
+    expect(isStepEdited(s, "face", 0, "am", stepId("face", 0, "am", 0))).toBeNull();
+  });
+
+  it("returns 'modified' after updateStepTuple on a default step", () => {
+    const id = stepId("face", 2, "am", 0);
+    const s = updateStepTuple(base, "face", 2, "am", id, "Sản phẩm mới", "");
+    expect(isStepEdited(s, "face", 2, "am", id)).toBe("modified");
+    expect(isStepEdited(s, "face", 2, "am", stepId("face", 2, "am", 1))).toBeNull();
+  });
+
+  it("returns 'modified' after setStepVariant (plain -> threshold)", () => {
+    const id = stepId("face", 3, "pm", 0);
+    const s = setStepVariant(base, "face", 3, "pm", id, {
+      kind: "threshold", untilWeek: 2, before: ["A", ""], from: ["B", ""],
+    });
+    expect(isStepEdited(s, "face", 3, "pm", id)).toBe("modified");
+  });
+
+  it("returns 'added' for a new-* step", () => {
+    const s = addStep(base, "hair", 1, "steps");
+    const day = s.overrides?.hair?.days[1];
+    if (!day || !("steps" in day)) throw new Error("hair day");
+    const newId = day.steps[day.steps.length - 1].id;
+    expect(newId).toBe("hair.1.steps.new-0");
+    expect(isStepEdited(s, "hair", 1, "steps", newId)).toBe("added");
+  });
+
+  it("returns null when the id is not found in the phase", () => {
+    const s = renameProduct(base, "face", 0, "x");
+    expect(isStepEdited(s, "face", 0, "am", "face.0.am.does-not-exist")).toBeNull();
   });
 });
