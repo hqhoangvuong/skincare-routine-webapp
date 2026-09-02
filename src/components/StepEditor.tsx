@@ -28,7 +28,10 @@ export default function StepEditor({
   const [open, setOpen] = useState(initialOpen);
   const liRef = useRef<HTMLLIElement>(null);
   useEffect(() => {
-    if (initialOpen && liRef.current?.scrollIntoView) liRef.current.scrollIntoView({ block: "nearest" });
+    if (initialOpen) {
+      setOpen(true);
+      if (liRef.current?.scrollIntoView) liRef.current.scrollIntoView({ block: "nearest" });
+    }
   }, [initialOpen]);
 
   const cls = `step-edit${edited === "modified" ? " is-modified" : edited === "added" ? " is-added" : ""}`;
@@ -37,7 +40,7 @@ export default function StepEditor({
     <li ref={liRef} className={cls}>
       <div className="step-edit-head">
         <button type="button" className="step-edit-toggle" aria-expanded={open}
-          aria-label={`Sửa bước: ${display.product || "Bước chưa đặt tên"}`}
+          aria-label={`Sửa bước: ${display.product || "Bước chưa đặt tên"}${edited ? ` (${EDIT_TAG[edited]})` : ""}`}
           onClick={() => setOpen((v) => !v)}>
           <span>{display.product || "Bước chưa đặt tên"}</span>
           {edited && <span className="step-edit-tag">{EDIT_TAG[edited]}</span>}

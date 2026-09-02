@@ -192,4 +192,14 @@ describe("isStepEdited", () => {
     const s = renameProduct(base, "face", 0, "x");
     expect(isStepEdited(s, "face", 0, "am", "face.0.am.does-not-exist")).toBeNull();
   });
+
+  it("does not tag shifted shipped steps as 'added' after removing an earlier sibling", () => {
+    const base = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
+    const s = removeStep(base, "face", 0, "am", stepId("face", 0, "am", 0));
+    const day = s.overrides?.face?.days[0];
+    if (!day || "steps" in day) throw new Error("expected a face day");
+    for (const st of day.am) {
+      expect(isStepEdited(s, "face", 0, "am", st.id)).not.toBe("added");
+    }
+  });
 });

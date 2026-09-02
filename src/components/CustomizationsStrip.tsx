@@ -61,9 +61,11 @@ export default function CustomizationsStrip({
   return (
     <div className="customizations">
       <div className="customizations-head">
-        <span>✎ Bạn đã tuỳ chỉnh mục này — {parts.join(", ")}</span>
+        <span>
+          ✎ Bạn đã tuỳ chỉnh mục này{modified === 0 && added === 0 ? "" : ` — ${parts.join(", ")}`}
+        </span>
         <button type="button" className="reset-category" onClick={onReset}>Đặt lại</button>
-        <button type="button" aria-label="Xem chi tiết" onClick={() => setOpen((v) => !v)}>
+        <button type="button" aria-label="Xem chi tiết" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
           {open ? "▾" : "▸"}
         </button>
       </div>

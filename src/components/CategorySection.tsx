@@ -374,6 +374,7 @@ export default function CategorySection({
         onEdit={{
           onAddStep: (phase) => {
             const n = state.stepSeq ?? 0;
+            // keep this id template in sync with content.ts#addStep
             setJustAddedId(`${category}.${activeDay}.${phase}.new-${n}`);
             editContent((s) => addStep(s, category, activeDay, phase));
           },

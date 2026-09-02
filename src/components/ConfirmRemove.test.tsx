@@ -45,13 +45,9 @@ describe("ConfirmRemove", () => {
         <button>outside</button>
       </>,
     );
-    const trigger = screen.getByRole("button", { name: "Xoá bước" });
-    await userEvent.click(trigger);
-    const xoaButton = screen.getByRole("button", { name: "Xoá" });
-    xoaButton.focus();
+    await userEvent.click(screen.getByRole("button", { name: "Xoá bước" }));
+    expect(screen.getByRole("button", { name: "Huỷ" })).toHaveFocus();
     await userEvent.click(screen.getByText("outside")); // moves focus out
-    // Add small delay to let blur handlers fire
-    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(screen.getByRole("button", { name: "Xoá bước" })).toBeInTheDocument();
     expect(onConfirm).not.toHaveBeenCalled();
   });

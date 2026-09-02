@@ -49,14 +49,15 @@ describe("useBufferedText", () => {
     expect(screen.getByLabelText("f")).toHaveValue("EXTERNAL");
   });
 
-  it("keeps the user's draft when an external change lands mid-edit, and the draft wins on blur", async () => {
+  it("holds the user's draft when committed changes externally mid-edit; draft wins on blur", async () => {
     const spy = vi.fn();
-    render(<Harness start="a" spy={spy} />);
+    const { rerender } = render(<Field committed="a" commit={spy} />);
     const input = screen.getByLabelText("f");
-    await userEvent.type(input, "z"); // focused, draft = "az"
-    await userEvent.click(screen.getByText("ext")); // external -> "EXTERNAL", but field is focused
-    // NB: clicking the button blurs the input in jsdom, so re-focus + assert draft survived the render
-    // Instead assert commit path: the blur from the click commits "az"
+    await userEvent.click(input);
+    await userEvent.keyboard("z"); // draft = "az", focused, no blur
+    rerender(<Field committed="EXTERNAL" commit={spy} />);
+    expect(input).toHaveValue("az"); // the !focused re-sync guard held the draft
+    await userEvent.tab();
     expect(spy).toHaveBeenCalledWith("az");
   });
 

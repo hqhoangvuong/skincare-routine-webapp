@@ -84,6 +84,19 @@ describe("StepEditor", () => {
     expect(screen.getByLabelText("Sản phẩm")).toBeInTheDocument();
   });
 
+  it("opens when initialOpen flips to true on an already-mounted row (same-day jump)", () => {
+    const { rerender } = render(
+      <StepEditor display={{ id: "x", product: "Toner", note: "" }} raw={["Toner", ""]}
+        initialOpen={false} onUpdateTuple={vi.fn()} onSetVariant={vi.fn()} onRemove={vi.fn()} />,
+    );
+    expect(screen.queryByLabelText("Sản phẩm")).toBeNull();
+    rerender(
+      <StepEditor display={{ id: "x", product: "Toner", note: "" }} raw={["Toner", ""]}
+        initialOpen onUpdateTuple={vi.fn()} onSetVariant={vi.fn()} onRemove={vi.fn()} />,
+    );
+    expect(screen.getByLabelText("Sản phẩm")).toBeInTheDocument();
+  });
+
   it("initialOpen + autoFocusFirst focuses the first product input", () => {
     render(
       <StepEditor display={{ id: "x", product: "Toner", note: "" }} raw={["Toner", ""]}

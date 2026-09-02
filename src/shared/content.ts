@@ -113,9 +113,10 @@ export function isStepEdited(
   const index = stored.findIndex((s) => s.id === id);
   if (index === -1) return null;
 
-  if (id !== stepId(category, dayIndex, phase, index)) return "added";
+  if (id.startsWith(`${category}.${dayIndex}.${phase}.new-`)) return "added";
 
   const defaultDay = routine[category].days[dayIndex];
+  // can't reuse phaseArrayOf: it aliases steps→am on face days
   const defaultSteps: RoutineStep[] = isHairDay(defaultDay)
     ? phase === "steps" ? defaultDay.steps : []
     : phase === "am" ? defaultDay.am : phase === "pm" ? defaultDay.pm : [];
