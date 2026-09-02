@@ -141,4 +141,52 @@ describe("CategorySection", () => {
     expect(screen.getByText("Thứ Năm")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /chỉnh sửa nội dung/i })).toHaveAttribute("aria-pressed", "true");
   });
+
+  it("a keyboard step reorder in edit mode changes the rendered order", async () => {
+    function Host() {
+      const [st, setSt] = useState(makeDefaultState(new Date("2026-08-24T00:00:00Z")));
+      return (
+        <CategorySection
+          category="face"
+          activeDay={0}
+          onSelectDay={() => {}}
+          state={st}
+          onToggleStep={() => {}}
+          editContent={(mut) => setSt(mut)}
+        />
+      );
+    }
+    render(<Host />);
+    await userEvent.click(screen.getByRole("button", { name: /chỉnh sửa nội dung/i }));
+    const handlesBefore = screen.getAllByRole("button", { name: /Kéo để sắp xếp bước/ });
+    // the first AM step label, before the move
+    const firstToggleBefore = screen.getAllByRole("button", { name: /^Sửa bước:/ })[0].textContent;
+    handlesBefore[0].focus();
+    await userEvent.keyboard("{ArrowDown}");
+    const firstToggleAfter = screen.getAllByRole("button", { name: /^Sửa bước:/ })[0].textContent;
+    expect(firstToggleAfter).not.toBe(firstToggleBefore);
+  });
+
+  it("editing the day name in edit mode persists (re-render shows the new value)", async () => {
+    function Host() {
+      const [st, setSt] = useState(makeDefaultState(new Date("2026-08-24T00:00:00Z")));
+      return (
+        <CategorySection
+          category="face"
+          activeDay={0}
+          onSelectDay={() => {}}
+          state={st}
+          onToggleStep={() => {}}
+          editContent={(mut) => setSt(mut)}
+        />
+      );
+    }
+    render(<Host />);
+    await userEvent.click(screen.getByRole("button", { name: /chỉnh sửa nội dung/i }));
+    const nameInput = screen.getByLabelText("Tên ngày");
+    await userEvent.clear(nameInput);
+    await userEvent.type(nameInput, "Ngày BHA");
+    await userEvent.tab();
+    expect(screen.getByLabelText("Tên ngày")).toHaveValue("Ngày BHA");
+  });
 });
