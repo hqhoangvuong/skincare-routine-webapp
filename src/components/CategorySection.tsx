@@ -312,7 +312,7 @@ export default function CategorySection({
         aria-label="Chỉnh sửa nội dung"
         onClick={() => setEditing((v) => !v)}
       >
-        ✎
+        {editing ? "✓ Xong" : "✎ Sửa nội dung"}
       </button>
       {editing && (
         <button
