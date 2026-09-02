@@ -189,4 +189,27 @@ describe("CategorySection", () => {
     await userEvent.tab();
     expect(screen.getByLabelText("Tên ngày")).toHaveValue("Ngày BHA");
   });
+
+  it("editing the focus prefix in edit mode persists (face category only)", async () => {
+    function Host() {
+      const [st, setSt] = useState(makeDefaultState(new Date("2026-08-24T00:00:00Z")));
+      return (
+        <CategorySection
+          category="face"
+          activeDay={0}
+          onSelectDay={() => {}}
+          state={st}
+          onToggleStep={() => {}}
+          editContent={(mut) => setSt(mut)}
+        />
+      );
+    }
+    render(<Host />);
+    await userEvent.click(screen.getByRole("button", { name: /chỉnh sửa nội dung/i }));
+    const prefixInput = screen.getByLabelText("Tiền tố nhãn (áp dụng cả mục)");
+    await userEvent.clear(prefixInput);
+    await userEvent.type(prefixInput, "Tối nay: ");
+    await userEvent.tab();
+    expect(screen.getByLabelText("Tiền tố nhãn (áp dụng cả mục)")).toHaveValue("Tối nay: ");
+  });
 });
