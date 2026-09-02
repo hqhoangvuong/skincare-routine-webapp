@@ -37,11 +37,15 @@ describe("StepEditor", () => {
     });
   });
 
-  it("calls onRemove", async () => {
+  it("removing a step needs two taps", async () => {
     const onRemove = vi.fn();
-    render(<StepEditor display={display} raw={["Toner Cocoon Sen", ""]}
-      onUpdateTuple={vi.fn()} onSetVariant={vi.fn()} onRemove={onRemove} />);
-    await userEvent.click(screen.getByRole("button", { name: /xoá bước/i }));
-    expect(onRemove).toHaveBeenCalled();
+    render(
+      <StepEditor display={{ id: "face.0.am.0", product: "Toner", note: "" }}
+        raw={["Toner", ""]} onUpdateTuple={vi.fn()} onSetVariant={vi.fn()} onRemove={onRemove} />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Xoá bước" }));
+    expect(onRemove).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Xoá" }));
+    expect(onRemove).toHaveBeenCalledTimes(1);
   });
 });

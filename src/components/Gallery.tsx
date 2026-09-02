@@ -1,6 +1,7 @@
 import { Icon } from "../icons/icons";
 import { pickIcon } from "../icons/pickIcon";
 import { useBufferedText } from "../hooks/useBufferedText";
+import ConfirmRemove from "./ConfirmRemove";
 
 export type GalleryEdit = {
   onRename: (index: number, name: string) => void;
@@ -30,13 +31,10 @@ function ProductRow({
         onFocus={buf.onFocus}
         onBlur={buf.onBlur}
       />
-      <button
-        type="button"
-        aria-label={product ? `Xoá ${product}` : `Xoá sản phẩm ${index + 1}`}
-        onClick={() => onEdit.onRemove(index)}
-      >
-        ×
-      </button>
+      <ConfirmRemove
+        label={product ? `Xoá ${product}` : `Xoá sản phẩm ${index + 1}`}
+        onConfirm={() => onEdit.onRemove(index)}
+      />
     </div>
   );
 }

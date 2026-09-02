@@ -1,5 +1,6 @@
 import { useState } from "react";
 import VariantEditor from "./VariantEditor";
+import ConfirmRemove from "./ConfirmRemove";
 import { isStepTuple, type RoutineStep } from "../shared/types";
 import type { ResolvedStep } from "../shared/content";
 
@@ -27,7 +28,7 @@ export default function StepEditor({
           <span>{display.product || "Bước chưa đặt tên"}</span>
           <span aria-hidden="true">{open ? "▾" : "▸"}</span>
         </button>
-        <button type="button" aria-label="Xoá bước" onClick={onRemove}>×</button>
+        <ConfirmRemove label="Xoá bước" onConfirm={onRemove} />
       </div>
       {open && (
         <VariantEditor

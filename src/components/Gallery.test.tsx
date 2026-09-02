@@ -20,11 +20,19 @@ describe("Gallery", () => {
     expect(screen.getByRole("textbox", { name: "Tên sản phẩm 1" })).toBe(inputs[0]);
 
     // the remove button names the product it removes when the name is non-empty
-    await userEvent.click(screen.getByRole("button", { name: "Xoá Cleanser" }));
-    expect(onEdit.onRemove).toHaveBeenCalledWith(0);
+    expect(screen.getByRole("button", { name: "Xoá Cleanser" })).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: /thêm sản phẩm/i }));
     expect(onEdit.onAdd).toHaveBeenCalled();
+  });
+
+  it("removing a product needs two taps", async () => {
+    const onEdit = { onRename: vi.fn(), onRemove: vi.fn(), onAdd: vi.fn() };
+    render(<Gallery products={["Cleanser"]} editing onEdit={onEdit} />);
+    await userEvent.click(screen.getByRole("button", { name: "Xoá Cleanser" }));
+    expect(onEdit.onRemove).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Xoá" }));
+    expect(onEdit.onRemove).toHaveBeenCalledWith(0);
   });
 
   it("buffers product edits — onRename fires once on blur, not per keystroke", async () => {

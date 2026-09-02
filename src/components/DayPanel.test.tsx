@@ -120,6 +120,8 @@ describe("DayPanel", () => {
     render(<DayPanel category="face" state={state} dayIndex={0} onToggleStep={() => {}} now={WEEK1_NOW}
       editing onEdit={onEdit} />);
     await userEvent.click(screen.getAllByRole("button", { name: /xoá bước/i })[0]);
+    expect(onEdit.onRemoveStep).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Xoá" }));
     expect(onEdit.onRemoveStep).toHaveBeenCalledWith("am", "face.0.am.0");
   });
 });
