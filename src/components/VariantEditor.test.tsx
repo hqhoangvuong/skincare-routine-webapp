@@ -67,6 +67,11 @@ describe("VariantEditor", () => {
     expect(next.before).toEqual(next.from);
   });
 
+  it("autoFocusFirst focuses the first product field on mount", () => {
+    render(<VariantEditor value={["Toner", ""]} onChange={vi.fn()} autoFocusFirst />);
+    expect(screen.getByLabelText("Sản phẩm")).toHaveFocus();
+  });
+
   it("cycle: switching length 2 -> 4 pads weeks to 4", async () => {
     const value: RoutineStep = { kind: "cycle", length: 2, weeks: [["A", ""], ["B", ""]] };
     const onChange = vi.fn();

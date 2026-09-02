@@ -78,9 +78,11 @@ function UntilWeekField({ value, onCommit }: { value: number; onCommit: (n: numb
 export default function VariantEditor({
   value,
   onChange,
+  autoFocusFirst = false,
 }: {
   value: RoutineStep;
   onChange: (next: RoutineStep) => void;
+  autoFocusFirst?: boolean;
 }) {
   const kind = kindOf(value);
   const base = firstTuple(value);
@@ -106,7 +108,7 @@ export default function VariantEditor({
 
       {kind === "plain" && (
         <TupleFields label={{ product: "Sản phẩm", note: "Ghi chú" }} value={base}
-          onChange={(t) => onChange(t)} />
+          onChange={(t) => onChange(t)} autoFocusFirst={autoFocusFirst} />
       )}
 
       {kind === "threshold" && !isStepTuple(value) && value.kind === "threshold" && (

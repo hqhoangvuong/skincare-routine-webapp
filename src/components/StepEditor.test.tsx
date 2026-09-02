@@ -48,4 +48,55 @@ describe("StepEditor", () => {
     await userEvent.click(screen.getByRole("button", { name: "Xoá" }));
     expect(onRemove).toHaveBeenCalledTimes(1);
   });
+
+  it("renders the 'đã đổi' tag and is-modified class when edited='modified'", () => {
+    const { container } = render(
+      <StepEditor display={{ id: "x", product: "Toner", note: "" }} raw={["Toner", ""]}
+        edited="modified" onUpdateTuple={vi.fn()} onSetVariant={vi.fn()} onRemove={vi.fn()} />,
+    );
+    expect(screen.getByText("đã đổi")).toBeInTheDocument();
+    expect(container.querySelector("li.step-edit.is-modified")).not.toBeNull();
+  });
+
+  it("renders 'mới' and is-added when edited='added'", () => {
+    const { container } = render(
+      <StepEditor display={{ id: "x", product: "", note: "" }} raw={["", ""]}
+        edited="added" onUpdateTuple={vi.fn()} onSetVariant={vi.fn()} onRemove={vi.fn()} />,
+    );
+    expect(screen.getByText("mới")).toBeInTheDocument();
+    expect(container.querySelector("li.step-edit.is-added")).not.toBeNull();
+  });
+
+  it("no tag when edited is null/undefined", () => {
+    render(
+      <StepEditor display={{ id: "x", product: "Toner", note: "" }} raw={["Toner", ""]}
+        onUpdateTuple={vi.fn()} onSetVariant={vi.fn()} onRemove={vi.fn()} />,
+    );
+    expect(screen.queryByText("đã đổi")).toBeNull();
+    expect(screen.queryByText("mới")).toBeNull();
+  });
+
+  it("initialOpen mounts the row expanded", () => {
+    render(
+      <StepEditor display={{ id: "x", product: "Toner", note: "" }} raw={["Toner", ""]}
+        initialOpen onUpdateTuple={vi.fn()} onSetVariant={vi.fn()} onRemove={vi.fn()} />,
+    );
+    expect(screen.getByLabelText("Sản phẩm")).toBeInTheDocument();
+  });
+
+  it("initialOpen + autoFocusFirst focuses the first product input", () => {
+    render(
+      <StepEditor display={{ id: "x", product: "Toner", note: "" }} raw={["Toner", ""]}
+        initialOpen autoFocusFirst onUpdateTuple={vi.fn()} onSetVariant={vi.fn()} onRemove={vi.fn()} />,
+    );
+    expect(screen.getByLabelText("Sản phẩm")).toHaveFocus();
+  });
+
+  it("initialOpen without autoFocusFirst does not steal focus", () => {
+    render(
+      <StepEditor display={{ id: "x", product: "Toner", note: "" }} raw={["Toner", ""]}
+        initialOpen onUpdateTuple={vi.fn()} onSetVariant={vi.fn()} onRemove={vi.fn()} />,
+    );
+    expect(screen.getByLabelText("Sản phẩm")).not.toHaveFocus();
+  });
 });
