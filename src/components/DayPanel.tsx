@@ -3,7 +3,12 @@ import { Icon } from "../icons/icons";
 import { pickIcon } from "../icons/pickIcon";
 import { programWeek, todayIso } from "../shared/date";
 import { isStepDone, phaseCompletion } from "../shared/progress";
-import { getStoredDays, resolveDayForState, type ResolvedStep } from "../shared/content";
+import {
+  getStoredDays,
+  isStepEdited,
+  resolveDayForState,
+  type ResolvedStep,
+} from "../shared/content";
 import StepEditor from "./StepEditor";
 import type { AppState, Category, RoutineStep, StepPhase, StoredStep } from "../shared/types";
 
@@ -64,6 +69,7 @@ function PhaseBody({
   phase,
   resolvedSteps,
   storedSteps,
+  state,
   category,
   dayIndex,
   completedSteps,
@@ -71,10 +77,13 @@ function PhaseBody({
   onToggleStep,
   editing,
   onEdit,
+  justAddedId = null,
+  openStepId = null,
 }: {
   phase: StepPhase;
   resolvedSteps: ResolvedStep[];
   storedSteps: StoredStep[];
+  state: AppState;
   category: Category;
   dayIndex: number;
   completedSteps: AppState["completedSteps"];
@@ -82,6 +91,8 @@ function PhaseBody({
   onToggleStep: ToggleStep;
   editing: boolean;
   onEdit?: DayEdit;
+  justAddedId?: string | null;
+  openStepId?: string | null;
 }) {
   if (editing && onEdit) {
     return (
@@ -92,6 +103,9 @@ function PhaseBody({
               key={rs.id}
               display={rs}
               raw={storedSteps[i].step}
+              edited={isStepEdited(state, category, dayIndex, phase, rs.id)}
+              initialOpen={rs.id === justAddedId || rs.id === openStepId}
+              autoFocusFirst={rs.id === justAddedId}
               onUpdateTuple={(p, n) => onEdit.onUpdateStep(phase, rs.id, p, n)}
               onSetVariant={(v) => onEdit.onSetVariant(phase, rs.id, v)}
               onRemove={() => onEdit.onRemoveStep(phase, rs.id)}
@@ -172,6 +186,8 @@ export default function DayPanel({
   now = new Date(),
   editing = false,
   onEdit,
+  justAddedId = null,
+  openStepId = null,
 }: {
   category: Category;
   state: AppState;
@@ -180,6 +196,8 @@ export default function DayPanel({
   now?: Date;
   editing?: boolean;
   onEdit?: DayEdit;
+  justAddedId?: string | null;
+  openStepId?: string | null;
 }) {
   const nowIso = todayIso(now);
   const week = programWeek(state.programStartDate, nowIso);
@@ -203,6 +221,7 @@ export default function DayPanel({
             phase="steps"
             resolvedSteps={day.steps}
             storedSteps={storedSteps}
+            state={state}
             category={category}
             dayIndex={dayIndex}
             completedSteps={completedSteps}
@@ -210,6 +229,8 @@ export default function DayPanel({
             onToggleStep={onToggleStep}
             editing={editing}
             onEdit={onEdit}
+            justAddedId={justAddedId}
+            openStepId={openStepId}
           />
         </Card>
       </div>
@@ -242,6 +263,7 @@ export default function DayPanel({
           phase="am"
           resolvedSteps={day.am}
           storedSteps={storedAm}
+          state={state}
           category={category}
           dayIndex={dayIndex}
           completedSteps={completedSteps}
@@ -249,6 +271,8 @@ export default function DayPanel({
           onToggleStep={onToggleStep}
           editing={editing}
           onEdit={onEdit}
+          justAddedId={justAddedId}
+          openStepId={openStepId}
         />
       </Card>
       <Card
@@ -263,6 +287,7 @@ export default function DayPanel({
           phase="pm"
           resolvedSteps={day.pm}
           storedSteps={storedPm}
+          state={state}
           category={category}
           dayIndex={dayIndex}
           completedSteps={completedSteps}
@@ -270,6 +295,8 @@ export default function DayPanel({
           onToggleStep={onToggleStep}
           editing={editing}
           onEdit={onEdit}
+          justAddedId={justAddedId}
+          openStepId={openStepId}
         />
       </Card>
     </div>
