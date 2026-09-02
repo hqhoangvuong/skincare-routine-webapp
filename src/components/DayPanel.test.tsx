@@ -103,7 +103,7 @@ describe("DayPanel", () => {
 
   it("edit mode: renders StepEditor rows, hides the count badge, shows add-step", async () => {
     const state = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
-    const onEdit = { onAddStep: vi.fn(), onUpdateStep: vi.fn(), onRemoveStep: vi.fn(), onSetVariant: vi.fn() };
+    const onEdit = { onAddStep: vi.fn(), onUpdateStep: vi.fn(), onRemoveStep: vi.fn(), onSetVariant: vi.fn(), onReorderStep: vi.fn() };
     render(<DayPanel category="face" state={state} dayIndex={0} onToggleStep={() => {}} now={WEEK1_NOW}
       editing onEdit={onEdit} />);
     expect(screen.queryByRole("checkbox")).toBeNull();
@@ -118,7 +118,7 @@ describe("DayPanel", () => {
     const base = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
     const id = stepId("face", 2, "am", 0);
     const state = updateStepTuple(base, "face", 2, "am", id, "Sản phẩm tuỳ chỉnh", "");
-    const onEdit = { onAddStep: vi.fn(), onUpdateStep: vi.fn(), onRemoveStep: vi.fn(), onSetVariant: vi.fn() };
+    const onEdit = { onAddStep: vi.fn(), onUpdateStep: vi.fn(), onRemoveStep: vi.fn(), onSetVariant: vi.fn(), onReorderStep: vi.fn() };
     render(<DayPanel category="face" state={state} dayIndex={2} onToggleStep={() => {}} now={WEEK1_NOW}
       editing onEdit={onEdit} />);
     expect(screen.getByText("đã đổi")).toBeInTheDocument();
@@ -131,7 +131,7 @@ describe("DayPanel", () => {
     const day = withStep.overrides?.face?.days[0];
     if (!day || "steps" in day) throw new Error("face day");
     const newId = day.am[day.am.length - 1].id;
-    const onEdit = { onAddStep: vi.fn(), onUpdateStep: vi.fn(), onRemoveStep: vi.fn(), onSetVariant: vi.fn() };
+    const onEdit = { onAddStep: vi.fn(), onUpdateStep: vi.fn(), onRemoveStep: vi.fn(), onSetVariant: vi.fn(), onReorderStep: vi.fn() };
     render(<DayPanel category="face" state={withStep} dayIndex={0} onToggleStep={() => {}} now={WEEK1_NOW}
       editing onEdit={onEdit} justAddedId={newId} />);
     expect(screen.getAllByLabelText("Sản phẩm").length).toBeGreaterThan(0); // a row is expanded
@@ -140,9 +140,24 @@ describe("DayPanel", () => {
     expect(added.some((el) => el === document.activeElement)).toBe(true);
   });
 
+  it("edit mode renders a drag handle per step; ArrowDown on the first calls onReorderStep", async () => {
+    const state = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
+    const onEdit = {
+      onAddStep: vi.fn(), onUpdateStep: vi.fn(), onRemoveStep: vi.fn(),
+      onSetVariant: vi.fn(), onReorderStep: vi.fn(),
+    };
+    render(<DayPanel category="face" state={state} dayIndex={0} onToggleStep={() => {}} now={WEEK1_NOW}
+      editing onEdit={onEdit} />);
+    const handles = screen.getAllByRole("button", { name: /Kéo để sắp xếp bước/ });
+    expect(handles.length).toBeGreaterThan(1);
+    handles[0].focus();
+    await userEvent.keyboard("{ArrowDown}");
+    expect(onEdit.onReorderStep).toHaveBeenCalledWith("am", 0, 1);
+  });
+
   it("edit mode: removing a step calls onRemoveStep with (phase, id)", async () => {
     const state = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
-    const onEdit = { onAddStep: vi.fn(), onUpdateStep: vi.fn(), onRemoveStep: vi.fn(), onSetVariant: vi.fn() };
+    const onEdit = { onAddStep: vi.fn(), onUpdateStep: vi.fn(), onRemoveStep: vi.fn(), onSetVariant: vi.fn(), onReorderStep: vi.fn() };
     render(<DayPanel category="face" state={state} dayIndex={0} onToggleStep={() => {}} now={WEEK1_NOW}
       editing onEdit={onEdit} />);
     await userEvent.click(screen.getAllByRole("button", { name: /xoá bước/i })[0]);

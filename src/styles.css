@@ -270,3 +270,9 @@ footer{margin-top:40px;text-align:center;font-size:12.5px;color:var(--rose-deep,
   border:none;background:none;color:var(--rose-deep);font-weight:700;font-size:12px;
   text-align:left;text-decoration:underline;cursor:pointer;padding:0;
 }
+
+.drag-handle{
+  border:none;background:none;color:var(--rose-deep);font-size:16px;line-height:1;
+  padding:2px 4px;cursor:grab;touch-action:none;
+}
+.drag-handle.is-dragging{cursor:grabbing;opacity:.5;}

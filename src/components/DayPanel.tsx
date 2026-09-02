@@ -10,6 +10,7 @@ import {
   type ResolvedStep,
 } from "../shared/content";
 import StepEditor from "./StepEditor";
+import { useDragSort } from "../hooks/useDragSort";
 import type { AppState, Category, RoutineStep, StepPhase, StoredStep } from "../shared/types";
 
 type ToggleStep = (category: Category, dayIndex: number, stepId: string) => void;
@@ -19,6 +20,7 @@ export type DayEdit = {
   onUpdateStep: (phase: StepPhase, id: string, product: string, note: string) => void;
   onRemoveStep: (phase: StepPhase, id: string) => void;
   onSetVariant: (phase: StepPhase, id: string, variant: RoutineStep) => void;
+  onReorderStep: (phase: StepPhase, fromIndex: number, toIndex: number) => void;
 };
 
 function Steps({
@@ -94,23 +96,44 @@ function PhaseBody({
   justAddedId?: string | null;
   openStepId?: string | null;
 }) {
+  const { order, handleProps, draggingKey } = useDragSort(
+    resolvedSteps,
+    (rs) => rs.id,
+    (from, to) => onEdit?.onReorderStep(phase, from, to),
+  );
+
   if (editing && onEdit) {
+    const storedById = new Map(storedSteps.map((s) => [s.id, s]));
     return (
       <>
         <ul className="steps steps-edit">
-          {resolvedSteps.map((rs, i) => (
-            <StepEditor
-              key={rs.id}
-              display={rs}
-              raw={storedSteps[i].step}
-              edited={isStepEdited(state, category, dayIndex, phase, rs.id)}
-              initialOpen={rs.id === justAddedId || rs.id === openStepId}
-              autoFocusFirst={rs.id === justAddedId}
-              onUpdateTuple={(p, n) => onEdit.onUpdateStep(phase, rs.id, p, n)}
-              onSetVariant={(v) => onEdit.onSetVariant(phase, rs.id, v)}
-              onRemove={() => onEdit.onRemoveStep(phase, rs.id)}
-            />
-          ))}
+          {order.map((rs) => {
+            const stored = storedById.get(rs.id);
+            if (!stored) return null;
+            const originalIndex = storedSteps.indexOf(stored);
+            return (
+              <StepEditor
+                key={rs.id}
+                display={rs}
+                raw={stored.step}
+                edited={isStepEdited(state, category, dayIndex, phase, rs.id)}
+                initialOpen={rs.id === justAddedId || rs.id === openStepId}
+                autoFocusFirst={rs.id === justAddedId}
+                dragHandle={
+                  <button
+                    type="button"
+                    className={`drag-handle${draggingKey === rs.id ? " is-dragging" : ""}`}
+                    {...handleProps(originalIndex)}
+                  >
+                    ⠿
+                  </button>
+                }
+                onUpdateTuple={(p, n) => onEdit.onUpdateStep(phase, rs.id, p, n)}
+                onSetVariant={(v) => onEdit.onSetVariant(phase, rs.id, v)}
+                onRemove={() => onEdit.onRemoveStep(phase, rs.id)}
+              />
+            );
+          })}
         </ul>
         <button type="button" className="add-step" onClick={() => onEdit.onAddStep(phase)}>
           + Thêm bước
