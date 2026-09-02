@@ -219,6 +219,16 @@ footer{margin-top:40px;text-align:center;font-size:12.5px;color:var(--rose-deep,
 .step-edit{list-style:none;}
 .step-edit-head{display:flex;align-items:center;gap:8px;}
 .step-edit-toggle{flex:1;display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:var(--cream);color:var(--rose-ink);font-family:'Nunito',sans-serif;font-weight:700;font-size:13.5px;cursor:pointer;}
+.confirm-x{border:none;background:none;color:var(--rose-deep);font-size:18px;line-height:1;cursor:pointer;padding:2px 6px;}
+.confirm-group{display:inline-flex;gap:6px;}
+.confirm-yes{border:none;border-radius:8px;background:var(--rose-deep);color:#fff;font-family:'Nunito',sans-serif;font-weight:800;font-size:11.5px;padding:4px 9px;cursor:pointer;}
+.confirm-no{border:1px solid var(--line);border-radius:8px;background:none;color:var(--rose-ink);font-family:'Nunito',sans-serif;font-weight:700;font-size:11.5px;padding:4px 9px;cursor:pointer;}
+/* scoped overrides: the .gallery-edit .prod-edit button rule (above) otherwise
+   forces the confirm buttons into identical 26px circles inside the Gallery */
+.gallery-edit .prod-edit .confirm-x{width:auto;height:auto;border-radius:8px;background:none;color:var(--rose-deep);font-size:18px;padding:2px 6px;}
+.gallery-edit .prod-edit .confirm-group{display:inline-flex;gap:6px;}
+.gallery-edit .prod-edit .confirm-yes{width:auto;height:auto;border-radius:8px;background:var(--rose-deep);color:#fff;font-family:'Nunito',sans-serif;font-weight:800;font-size:11.5px;padding:4px 9px;}
+.gallery-edit .prod-edit .confirm-no{width:auto;height:auto;border-radius:8px;border:1px solid var(--line);background:none;color:var(--rose-ink);font-family:'Nunito',sans-serif;font-weight:700;font-size:11.5px;padding:4px 9px;}
 
 /* --- content editor: pencil toggle, reset, step list edit mode --- */
 .edit-toggle{
@@ -229,7 +239,7 @@ footer{margin-top:40px;text-align:center;font-size:12.5px;color:var(--rose-deep,
   font-family:'Nunito',sans-serif;font-weight:800;font-size:12.5px;line-height:1;
   cursor:pointer;box-shadow:0 6px 16px -6px rgba(198,107,126,.6);
 }
-.edit-toggle[aria-pressed="true"]{background:var(--rose-ink);}
+.edit-toggle[aria-pressed="true"]{background:var(--rose-ink);position:sticky;top:8px;}
 .reset-category{
   display:block;margin:0 0 16px;padding:0;border:none;background:none;
   color:var(--rose-deep);font-weight:700;font-size:12.5px;text-decoration:underline;
@@ -240,4 +250,23 @@ footer{margin-top:40px;text-align:center;font-size:12.5px;color:var(--rose-deep,
   display:block;width:calc(100% - 40px);margin:4px 20px 18px;padding:10px;
   border:2px dashed var(--line);border-radius:14px;background:none;
   color:var(--rose-deep);font-weight:700;font-size:12.5px;cursor:pointer;
+}
+.step-edit.is-modified{border-left:3px solid var(--gold);}
+.step-edit.is-added{border-left:3px solid var(--rose-deep);}
+.step-edit-tag{font-size:10.5px;font-weight:800;color:var(--rose-deep);background:var(--blush-deep);border-radius:6px;padding:1px 6px;}
+
+.edit-toggle[data-edited="true"]::after{
+  content:"";position:absolute;top:-2px;right:-2px;width:9px;height:9px;
+  border-radius:50%;background:var(--gold);border:2px solid var(--cream);
+}
+.customizations{
+  margin:0 0 16px;padding:10px 12px;border-radius:12px;
+  background:var(--blush);border:1px solid var(--line);font-size:12.5px;color:var(--rose-ink);
+}
+.customizations-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.customizations-head > span{flex:1;min-width:180px;}
+.customizations-list{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:4px;}
+.customizations-list button{
+  border:none;background:none;color:var(--rose-deep);font-weight:700;font-size:12px;
+  text-align:left;text-decoration:underline;cursor:pointer;padding:0;
 }

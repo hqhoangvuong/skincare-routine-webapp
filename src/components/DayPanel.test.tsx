@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import DayPanel from "./DayPanel";
 import { makeDefaultState } from "../shared/defaults";
-import { stepId, updateStepTuple } from "../shared/content";
+import { addStep, stepId, updateStepTuple } from "../shared/content";
 import type { AppState } from "../shared/types";
 
 const WEEK1_NOW = new Date("2026-08-26T03:00:00Z"); // Wednesday, program week 1
@@ -114,12 +114,40 @@ describe("DayPanel", () => {
     expect(onEdit.onAddStep).toHaveBeenCalledWith("am");
   });
 
+  it("marks an overridden step as modified in edit mode", () => {
+    const base = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
+    const id = stepId("face", 2, "am", 0);
+    const state = updateStepTuple(base, "face", 2, "am", id, "Sản phẩm tuỳ chỉnh", "");
+    const onEdit = { onAddStep: vi.fn(), onUpdateStep: vi.fn(), onRemoveStep: vi.fn(), onSetVariant: vi.fn() };
+    render(<DayPanel category="face" state={state} dayIndex={2} onToggleStep={() => {}} now={WEEK1_NOW}
+      editing onEdit={onEdit} />);
+    expect(screen.getByText("đã đổi")).toBeInTheDocument();
+  });
+
+  it("opens and focuses the row whose id === justAddedId", () => {
+    const base = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
+    // hand-build an override with one added step so its id is deterministic
+    const withStep = addStep(base, "face", 0, "am");
+    const day = withStep.overrides?.face?.days[0];
+    if (!day || "steps" in day) throw new Error("face day");
+    const newId = day.am[day.am.length - 1].id;
+    const onEdit = { onAddStep: vi.fn(), onUpdateStep: vi.fn(), onRemoveStep: vi.fn(), onSetVariant: vi.fn() };
+    render(<DayPanel category="face" state={withStep} dayIndex={0} onToggleStep={() => {}} now={WEEK1_NOW}
+      editing onEdit={onEdit} justAddedId={newId} />);
+    expect(screen.getAllByLabelText("Sản phẩm").length).toBeGreaterThan(0); // a row is expanded
+    // the added row's first product field has focus
+    const added = screen.getAllByLabelText("Sản phẩm");
+    expect(added.some((el) => el === document.activeElement)).toBe(true);
+  });
+
   it("edit mode: removing a step calls onRemoveStep with (phase, id)", async () => {
     const state = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
     const onEdit = { onAddStep: vi.fn(), onUpdateStep: vi.fn(), onRemoveStep: vi.fn(), onSetVariant: vi.fn() };
     render(<DayPanel category="face" state={state} dayIndex={0} onToggleStep={() => {}} now={WEEK1_NOW}
       editing onEdit={onEdit} />);
     await userEvent.click(screen.getAllByRole("button", { name: /xoá bước/i })[0]);
+    expect(onEdit.onRemoveStep).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Xoá" }));
     expect(onEdit.onRemoveStep).toHaveBeenCalledWith("am", "face.0.am.0");
   });
 });

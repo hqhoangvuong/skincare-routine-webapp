@@ -13,6 +13,9 @@ describe("VariantEditor", () => {
     const onChange = vi.fn();
     render(<VariantEditor value={["Toner", "am note"]} onChange={onChange} />);
     await userEvent.type(screen.getByLabelText("Sản phẩm"), "!");
+    expect(onChange).not.toHaveBeenCalled(); // buffered — no commit while typing
+    await userEvent.tab();
+    expect(onChange).toHaveBeenCalledTimes(1);
     expect(last(onChange)).toEqual(["Toner!", "am note"]);
   });
 
@@ -31,6 +34,8 @@ describe("VariantEditor", () => {
     render(<VariantEditor value={value} onChange={onChange} />);
     const fromProduct = screen.getByLabelText("Sản phẩm — từ tuần 3");
     await userEvent.type(fromProduct, "!");
+    expect(onChange).not.toHaveBeenCalled(); // buffered — no commit while typing
+    await userEvent.tab();
     const next = last(onChange);
     if (Array.isArray(next) || next.kind !== "threshold") throw new Error("expected threshold");
     expect(next.before).toEqual(["A", ""]);
@@ -60,6 +65,11 @@ describe("VariantEditor", () => {
     if (Array.isArray(next) || next.kind !== "threshold") throw new Error("expected threshold");
     expect(next.before).not.toBe(next.from); // distinct array objects
     expect(next.before).toEqual(next.from);
+  });
+
+  it("autoFocusFirst focuses the first product field on mount", () => {
+    render(<VariantEditor value={["Toner", ""]} onChange={vi.fn()} autoFocusFirst />);
+    expect(screen.getByLabelText("Sản phẩm")).toHaveFocus();
   });
 
   it("cycle: switching length 2 -> 4 pads weeks to 4", async () => {
