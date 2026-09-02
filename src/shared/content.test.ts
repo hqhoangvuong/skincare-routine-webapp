@@ -5,7 +5,7 @@ import {
   getCategoryData, resolveDayForState, stepId, isStepEdited,
   addProduct, renameProduct, removeProduct,
   addStep, updateStepTuple, removeStep, setStepVariant, resetCategory,
-  getStoredDays,
+  getStoredDays, moveStep,
 } from "./content";
 import type { AppState, CategoryOverride, ThresholdVariant } from "./types";
 
@@ -223,5 +223,38 @@ describe("isStepEdited", () => {
     let s = updateStepTuple(base, "face", 0, "am", editedId, "Sản phẩm đổi", "");
     s = removeStep(s, "face", 0, "am", stepId("face", 0, "am", 0)); // now editedId sits at array index 2
     expect(isStepEdited(s, "face", 0, "am", editedId)).toBe("modified");
+  });
+});
+
+describe("moveStep", () => {
+  const base = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
+
+  it("reorders a step within a phase, ids and contents riding along", () => {
+    const s = moveStep(base, "face", 0, "am", 0, 2);
+    const day = s.overrides?.face?.days[0];
+    if (!day || "steps" in day) throw new Error("face day");
+    // original ids were face.0.am.0 .. face.0.am.4; after moving 0 -> 2:
+    expect(day.am.map((x) => x.id)).toEqual([
+      "face.0.am.1", "face.0.am.2", "face.0.am.0", "face.0.am.3", "face.0.am.4",
+    ]);
+  });
+
+  it("leaves completedSteps byte-unchanged", () => {
+    const withChecks = { ...base, completedSteps: [
+      { date: "2026-08-24", category: "face" as const, stepId: "face.0.am.0" },
+    ] };
+    const s = moveStep(withChecks, "face", 0, "am", 0, 2);
+    expect(s.completedSteps).toEqual(withChecks.completedSteps);
+  });
+
+  it("returns the same state reference for same-index or out-of-range", () => {
+    expect(moveStep(base, "face", 0, "am", 1, 1)).toBe(base);
+    expect(moveStep(base, "face", 0, "am", -1, 0)).toBe(base);
+    expect(moveStep(base, "face", 0, "am", 0, 99)).toBe(base);
+  });
+
+  it("does not create an override for other categories", () => {
+    const s = moveStep(base, "face", 0, "am", 0, 1);
+    expect(s.overrides?.hair).toBeUndefined();
   });
 });

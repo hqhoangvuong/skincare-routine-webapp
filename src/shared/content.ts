@@ -235,6 +235,30 @@ export function removeStep(
   return withOverride(state, category, o);
 }
 
+export function moveStep(
+  state: AppState, category: Category, dayIndex: number, phase: StepPhase,
+  fromIndex: number, toIndex: number,
+): AppState {
+  const o0 = state.overrides?.[category];
+  const currentDay = o0 ? o0.days[dayIndex] : getStoredDays(state, category)[dayIndex];
+  const len = phaseArrayOf(currentDay, phase).length;
+  if (
+    fromIndex === toIndex ||
+    fromIndex < 0 || fromIndex >= len ||
+    toIndex < 0 || toIndex >= len
+  ) {
+    return state;
+  }
+
+  const o = ensureOverride(state, category);
+  const day = o.days[dayIndex];
+  const arr = [...phaseArrayOf(day, phase)];
+  const [moved] = arr.splice(fromIndex, 1);
+  arr.splice(toIndex, 0, moved);
+  o.days[dayIndex] = setPhaseArray(day, phase, arr);
+  return withOverride(state, category, o);
+}
+
 export function setStepVariant(
   state: AppState, category: Category, dayIndex: number, phase: StepPhase,
   id: string, variant: RoutineStep,
