@@ -4,12 +4,18 @@ import { pickIcon } from "../icons/pickIcon";
 import { programWeek, todayIso } from "../shared/date";
 import { isStepDone, phaseCompletion } from "../shared/progress";
 import {
+  getFocusPrefix,
   getStoredDays,
+  isDayMetaEdited,
+  isFocusPrefixEdited,
   isStepEdited,
   resolveDayForState,
+  type ResolvedDay,
   type ResolvedStep,
 } from "../shared/content";
 import StepEditor from "./StepEditor";
+import { useBufferedText } from "../hooks/useBufferedText";
+import { useDragSort } from "../hooks/useDragSort";
 import type { AppState, Category, RoutineStep, StepPhase, StoredStep } from "../shared/types";
 
 type ToggleStep = (category: Category, dayIndex: number, stepId: string) => void;
@@ -19,6 +25,9 @@ export type DayEdit = {
   onUpdateStep: (phase: StepPhase, id: string, product: string, note: string) => void;
   onRemoveStep: (phase: StepPhase, id: string) => void;
   onSetVariant: (phase: StepPhase, id: string, variant: RoutineStep) => void;
+  onReorderStep: (phase: StepPhase, fromIndex: number, toIndex: number) => void;
+  onUpdateDayMeta: (patch: { full?: string; focus?: string; type?: string }) => void;
+  onSetFocusPrefix: (prefix: string) => void;
 };
 
 function Steps({
@@ -94,23 +103,45 @@ function PhaseBody({
   justAddedId?: string | null;
   openStepId?: string | null;
 }) {
+  const { order, handleProps, draggingKey } = useDragSort(
+    resolvedSteps,
+    (rs) => rs.id,
+    (from, to) => onEdit?.onReorderStep(phase, from, to),
+  );
+
   if (editing && onEdit) {
+    const storedById = new Map(storedSteps.map((s) => [s.id, s]));
     return (
       <>
         <ul className="steps steps-edit">
-          {resolvedSteps.map((rs, i) => (
-            <StepEditor
-              key={rs.id}
-              display={rs}
-              raw={storedSteps[i].step}
-              edited={isStepEdited(state, category, dayIndex, phase, rs.id)}
-              initialOpen={rs.id === justAddedId || rs.id === openStepId}
-              autoFocusFirst={rs.id === justAddedId}
-              onUpdateTuple={(p, n) => onEdit.onUpdateStep(phase, rs.id, p, n)}
-              onSetVariant={(v) => onEdit.onSetVariant(phase, rs.id, v)}
-              onRemove={() => onEdit.onRemoveStep(phase, rs.id)}
-            />
-          ))}
+          {order.map((rs) => {
+            const stored = storedById.get(rs.id);
+            if (!stored) return null;
+            const originalIndex = storedSteps.indexOf(stored);
+            return (
+              <StepEditor
+                key={rs.id}
+                display={rs}
+                raw={stored.step}
+                edited={isStepEdited(state, category, dayIndex, phase, rs.id)}
+                dragging={draggingKey === rs.id}
+                initialOpen={rs.id === justAddedId || rs.id === openStepId}
+                autoFocusFirst={rs.id === justAddedId}
+                dragHandle={
+                  <button
+                    type="button"
+                    className={`drag-handle${draggingKey === rs.id ? " is-dragging" : ""}`}
+                    {...handleProps(originalIndex)}
+                  >
+                    ⠿
+                  </button>
+                }
+                onUpdateTuple={(p, n) => onEdit.onUpdateStep(phase, rs.id, p, n)}
+                onSetVariant={(v) => onEdit.onSetVariant(phase, rs.id, v)}
+                onRemove={() => onEdit.onRemoveStep(phase, rs.id)}
+              />
+            );
+          })}
         </ul>
         <button type="button" className="add-step" onClick={() => onEdit.onAddStep(phase)}>
           + Thêm bước
@@ -164,19 +195,64 @@ function Card({
 
 const PANEL_COPY: Record<
   "face" | "body",
-  { badgePrefix: string; am: { title: string; subtitle: string }; pm: { title: string; subtitle: string } }
+  { am: { title: string; subtitle: string }; pm: { title: string; subtitle: string } }
 > = {
   face: {
-    badgePrefix: "Trọng tâm tối nay: ",
     am: { title: "Buổi sáng", subtitle: "Chăm da ban ngày" },
     pm: { title: "Buổi tối", subtitle: "Chăm da ban đêm" },
   },
   body: {
-    badgePrefix: "",
     am: { title: "Sau khi tắm", subtitle: "Chăm thể ban ngày" },
     pm: { title: "Trước khi ngủ", subtitle: "Chăm thể ban đêm" },
   },
 };
+
+function DayHeaderEdit({
+  state, category, dayIndex, day, onEdit,
+}: {
+  state: AppState;
+  category: Category;
+  dayIndex: number;
+  day: ResolvedDay;
+  onEdit: DayEdit;
+}) {
+  const nameBuf = useBufferedText(day.full, (v) => onEdit.onUpdateDayMeta({ full: v }));
+  const isHair = day.kind === "hair";
+  const focusVal = isHair ? day.type : day.focus;
+  const focusBuf = useBufferedText(focusVal, (v) =>
+    onEdit.onUpdateDayMeta(isHair ? { type: v } : { focus: v }),
+  );
+  const prefixBuf = useBufferedText(getFocusPrefix(state, category), (v) => onEdit.onSetFocusPrefix(v));
+  const edited = isDayMetaEdited(state, category, dayIndex);
+  const prefixEdited = isFocusPrefixEdited(state, category);
+
+  return (
+    <div className="day-header-edit">
+      <div className="day-header-edit-row">
+        <span>Tiêu đề ngày</span>
+        {edited && <span className="step-edit-tag">đã đổi</span>}
+      </div>
+      <label>
+        Tên ngày
+        <input type="text" value={nameBuf.value} onChange={nameBuf.onChange}
+          onFocus={nameBuf.onFocus} onBlur={nameBuf.onBlur} />
+      </label>
+      <label>
+        {isHair ? "Loại ngày" : "Trọng tâm"}
+        <input type="text" value={focusBuf.value} onChange={focusBuf.onChange}
+          onFocus={focusBuf.onFocus} onBlur={focusBuf.onBlur} />
+      </label>
+      {category === "face" && (
+        <label>
+          Tiền tố nhãn (áp dụng cả mục)
+          {prefixEdited && <span className="step-edit-tag">đã đổi</span>}
+          <input type="text" value={prefixBuf.value} onChange={prefixBuf.onChange}
+            onFocus={prefixBuf.onFocus} onBlur={prefixBuf.onBlur} />
+        </label>
+      )}
+    </div>
+  );
+}
 
 export default function DayPanel({
   category,
@@ -212,6 +288,15 @@ export default function DayPanel({
     const storedSteps = "steps" in storedDay ? storedDay.steps : [];
     return (
       <div className="panel active">
+        {editing && onEdit && (
+          <DayHeaderEdit
+            state={state}
+            category={category}
+            dayIndex={dayIndex}
+            day={day}
+            onEdit={onEdit}
+          />
+        )}
         <div className="badge-row">
           <span className="badge focus">{day.full}</span>
           <span className="badge">{day.type}</span>
@@ -244,10 +329,19 @@ export default function DayPanel({
   const storedPm = "pm" in storedDay ? storedDay.pm : [];
   return (
     <div className="panel active">
+      {editing && onEdit && (
+        <DayHeaderEdit
+          state={state}
+          category={category}
+          dayIndex={dayIndex}
+          day={day}
+          onEdit={onEdit}
+        />
+      )}
       <div className="badge-row">
         <span className="badge focus">{day.full}</span>
         <span className="badge">
-          {copy.badgePrefix}
+          {getFocusPrefix(state, category)}
           {day.focus}
         </span>
       </div>

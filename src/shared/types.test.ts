@@ -48,6 +48,16 @@ describe("isCategoryOverride", () => {
     badStep.days[0].am[0].step = ["only-one"];
     expect(isCategoryOverride(badStep)).toBe(false);
   });
+
+  describe("isCategoryOverride — focusPrefix", () => {
+    it("accepts an override with a string focusPrefix and one with it absent", () => {
+      expect(isCategoryOverride({ ...goodOverride, focusPrefix: "Tối nay: " })).toBe(true);
+      expect(isCategoryOverride({ ...goodOverride })).toBe(true);
+    });
+    it("rejects a non-string focusPrefix", () => {
+      expect(isCategoryOverride({ ...goodOverride, focusPrefix: 3 })).toBe(false);
+    });
+  });
 });
 
 describe("isAppState (v3)", () => {

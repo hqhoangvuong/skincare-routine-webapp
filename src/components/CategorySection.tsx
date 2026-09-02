@@ -5,8 +5,8 @@ import DayTabs from "./DayTabs";
 import DayPanel from "./DayPanel";
 import CustomizationsStrip from "./CustomizationsStrip";
 import {
-  addProduct, addStep, getCategoryData, removeProduct, removeStep,
-  renameProduct, resetCategory, setStepVariant, updateStepTuple,
+  addProduct, addStep, getCategoryData, moveStep, removeProduct, removeStep,
+  renameProduct, resetCategory, setFocusPrefix, setStepVariant, updateDayMeta, updateStepTuple,
 } from "../shared/content";
 import type { AppState, Category } from "../shared/types";
 
@@ -383,6 +383,12 @@ export default function CategorySection({
           onRemoveStep: (phase, id) => editContent((s) => removeStep(s, category, activeDay, phase, id)),
           onSetVariant: (phase, id, variant) =>
             editContent((s) => setStepVariant(s, category, activeDay, phase, id, variant)),
+          onReorderStep: (phase, from, to) =>
+            editContent((s) => moveStep(s, category, activeDay, phase, from, to)),
+          onUpdateDayMeta: (patch) =>
+            editContent((s) => updateDayMeta(s, category, activeDay, patch)),
+          onSetFocusPrefix: (prefix) =>
+            editContent((s) => setFocusPrefix(s, category, prefix)),
         }}
       />
 

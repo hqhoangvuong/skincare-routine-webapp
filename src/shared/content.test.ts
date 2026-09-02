@@ -5,6 +5,8 @@ import {
   getCategoryData, resolveDayForState, stepId, isStepEdited,
   addProduct, renameProduct, removeProduct,
   addStep, updateStepTuple, removeStep, setStepVariant, resetCategory,
+  getStoredDays, moveStep,
+  updateDayMeta, setFocusPrefix, getFocusPrefix, isDayMetaEdited, isFocusPrefixEdited,
 } from "./content";
 import type { AppState, CategoryOverride, ThresholdVariant } from "./types";
 
@@ -149,6 +151,18 @@ describe("mutation helpers", () => {
     expect(s.overrides?.face).toBeUndefined();
     expect(s.overrides?.hair?.products[0]).toBe("H");
   });
+
+  it("cloneOverride carries focusPrefix through a later CoW edit", () => {
+    const base = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
+    // seed an override that already has a focusPrefix, then trigger another CoW edit
+    const seeded = { ...base, overrides: { face: {
+      products: [...routine.face.products],
+      days: getStoredDays(base, "face"),
+      focusPrefix: "Tối nay: ",
+    } } };
+    const after = renameProduct(seeded, "face", 0, "X");
+    expect(after.overrides?.face?.focusPrefix).toBe("Tối nay: ");
+  });
 });
 
 describe("isStepEdited", () => {
@@ -193,13 +207,137 @@ describe("isStepEdited", () => {
     expect(isStepEdited(s, "face", 0, "am", "face.0.am.does-not-exist")).toBeNull();
   });
 
-  it("does not tag shifted shipped steps as 'added' after removing an earlier sibling", () => {
+  it("does not mark a step as modified after an earlier sibling is removed", () => {
     const base = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
+    // face day 0 (Monday) AM has 5 steps; remove index 0, survivors shift to 0..3
     const s = removeStep(base, "face", 0, "am", stepId("face", 0, "am", 0));
     const day = s.overrides?.face?.days[0];
     if (!day || "steps" in day) throw new Error("expected a face day");
     for (const st of day.am) {
-      expect(isStepEdited(s, "face", 0, "am", st.id)).not.toBe("added");
+      expect(isStepEdited(s, "face", 0, "am", st.id)).toBeNull();
     }
+  });
+
+  it("still marks a genuinely edited step even after its index shifts", () => {
+    const base = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
+    const editedId = stepId("face", 0, "am", 3);
+    let s = updateStepTuple(base, "face", 0, "am", editedId, "Sản phẩm đổi", "");
+    s = removeStep(s, "face", 0, "am", stepId("face", 0, "am", 0)); // now editedId sits at array index 2
+    expect(isStepEdited(s, "face", 0, "am", editedId)).toBe("modified");
+  });
+});
+
+describe("moveStep", () => {
+  const base = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
+
+  it("reorders a step within a phase, ids and contents riding along", () => {
+    const s = moveStep(base, "face", 0, "am", 0, 2);
+    const day = s.overrides?.face?.days[0];
+    if (!day || "steps" in day) throw new Error("face day");
+    // original ids were face.0.am.0 .. face.0.am.4; after moving 0 -> 2:
+    expect(day.am.map((x) => x.id)).toEqual([
+      "face.0.am.1", "face.0.am.2", "face.0.am.0", "face.0.am.3", "face.0.am.4",
+    ]);
+  });
+
+  it("leaves completedSteps byte-unchanged", () => {
+    const withChecks = { ...base, completedSteps: [
+      { date: "2026-08-24", category: "face" as const, stepId: "face.0.am.0" },
+    ] };
+    const s = moveStep(withChecks, "face", 0, "am", 0, 2);
+    expect(s.completedSteps).toEqual(withChecks.completedSteps);
+  });
+
+  it("returns the same state reference for same-index or out-of-range", () => {
+    expect(moveStep(base, "face", 0, "am", 1, 1)).toBe(base);
+    expect(moveStep(base, "face", 0, "am", -1, 0)).toBe(base);
+    expect(moveStep(base, "face", 0, "am", 0, 99)).toBe(base);
+  });
+
+  it("does not create an override for other categories", () => {
+    const s = moveStep(base, "face", 0, "am", 0, 1);
+    expect(s.overrides?.hair).toBeUndefined();
+  });
+
+  it("isStepEdited stays null for every step after a reorder (moved, not changed)", () => {
+    const s = moveStep(base, "face", 0, "am", 0, 2);
+    const day = s.overrides?.face?.days[0];
+    if (!day || "steps" in day) throw new Error("face day");
+    for (const st of day.am) {
+      expect(isStepEdited(s, "face", 0, "am", st.id)).toBeNull();
+    }
+  });
+
+  it("reorders a hair steps phase; ids swap and isStepEdited stays null", () => {
+    const s = moveStep(base, "hair", 0, "steps", 0, 1);
+    const day = s.overrides?.hair?.days[0];
+    if (!day || !("steps" in day)) throw new Error("hair day");
+    expect(day.steps.slice(0, 2).map((x) => x.id)).toEqual([
+      "hair.0.steps.1", "hair.0.steps.0",
+    ]);
+    for (const st of day.steps) {
+      expect(isStepEdited(s, "hair", 0, "steps", st.id)).toBeNull();
+    }
+  });
+});
+
+describe("day metadata helpers", () => {
+  const base = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
+
+  it("updateDayMeta sets full on a face day and clones the category", () => {
+    const s = updateDayMeta(base, "face", 0, { full: "Thứ Hai (BHA)" });
+    const day = s.overrides?.face?.days[0];
+    if (!day || "steps" in day) throw new Error("face day");
+    expect(day.full).toBe("Thứ Hai (BHA)");
+    expect(s.overrides?.hair).toBeUndefined();
+  });
+
+  it("updateDayMeta applies focus to a face day and ignores a type key", () => {
+    const s = updateDayMeta(base, "face", 0, { focus: "BHA nhẹ", type: "ignored" });
+    const day = s.overrides?.face?.days[0];
+    if (!day || "steps" in day) throw new Error("face day");
+    expect(day.focus).toBe("BHA nhẹ");
+    expect("type" in day).toBe(false);
+  });
+
+  it("updateDayMeta stores an explicit empty focus (not the default)", () => {
+    const s = updateDayMeta(base, "face", 0, { focus: "" });
+    const day = getStoredDays(s, "face")[0];
+    if ("steps" in day) throw new Error("face day");
+    expect(day.focus).toBe("");
+  });
+
+  it("updateDayMeta applies type to a hair day and ignores a focus key", () => {
+    const s = updateDayMeta(base, "hair", 0, { type: "Ngày gội mới", focus: "ignored" });
+    const day = s.overrides?.hair?.days[0];
+    if (!day || !("steps" in day)) throw new Error("hair day");
+    expect(day.type).toBe("Ngày gội mới");
+  });
+
+  it("getFocusPrefix returns the shipped default, then the override value", () => {
+    expect(getFocusPrefix(base, "face")).toBe("Trọng tâm tối nay: ");
+    expect(getFocusPrefix(base, "body")).toBe("");
+    expect(getFocusPrefix(base, "hair")).toBe("");
+    const s = setFocusPrefix(base, "face", "Tối nay: ");
+    expect(getFocusPrefix(s, "face")).toBe("Tối nay: ");
+    const cleared = setFocusPrefix(base, "face", "");
+    expect(getFocusPrefix(cleared, "face")).toBe(""); // explicit empty, not the default
+  });
+
+  it("isDayMetaEdited: false for no override / cloned-but-unedited, true after an edit", () => {
+    expect(isDayMetaEdited(base, "face", 0)).toBe(false);
+    const cloned = renameProduct(base, "face", 0, "X"); // CoW clone, day meta untouched
+    expect(isDayMetaEdited(cloned, "face", 0)).toBe(false);
+    expect(isDayMetaEdited(updateDayMeta(base, "face", 0, { focus: "z" }), "face", 0)).toBe(true);
+    // a prefix-only change is category-level, not per-day: isDayMetaEdited stays false
+    expect(isDayMetaEdited(setFocusPrefix(base, "face", "z"), "face", 3)).toBe(false);
+    expect(isDayMetaEdited(updateDayMeta(base, "face", 0, { focus: "z" }), "face", 3)).toBe(false);
+  });
+
+  it("isFocusPrefixEdited: false with no override, false when set back to the default, true on a real change", () => {
+    expect(isFocusPrefixEdited(base, "face")).toBe(false);
+    expect(isFocusPrefixEdited(setFocusPrefix(base, "face", "Tối nay: "), "face")).toBe(true);
+    expect(isFocusPrefixEdited(setFocusPrefix(base, "face", "Trọng tâm tối nay: "), "face")).toBe(false);
+    expect(isFocusPrefixEdited(setFocusPrefix(base, "body", ""), "body")).toBe(false);
   });
 });

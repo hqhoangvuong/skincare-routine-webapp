@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { getStoredDays, isStepEdited } from "../shared/content";
+import { getStoredDays, isDayMetaEdited, isFocusPrefixEdited, isStepEdited } from "../shared/content";
 import type { AppState, Category, StepPhase, StoredStep } from "../shared/types";
 
 const DAY_SHORT = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
@@ -55,14 +55,21 @@ export default function CustomizationsStrip({
   const modified = changes.filter((c) => c.kind === "modified").length;
   const added = changes.filter((c) => c.kind === "added").length;
 
-  const parts = [`${modified} bước đã đổi`];
+  const daysWithMeta = getStoredDays(state, category)
+    .filter((_, dayIndex) => isDayMetaEdited(state, category, dayIndex)).length;
+  const prefixEdited = isFocusPrefixEdited(state, category);
+
+  const parts: string[] = [];
+  if (modified > 0) parts.push(`${modified} bước đã đổi`);
   if (added > 0) parts.push(`${added} bước mới`);
+  if (daysWithMeta > 0) parts.push(`${daysWithMeta} ngày đổi tiêu đề`);
+  if (prefixEdited) parts.push("tiền tố nhãn đã đổi");
 
   return (
     <div className="customizations">
       <div className="customizations-head">
         <span>
-          ✎ Bạn đã tuỳ chỉnh mục này{modified === 0 && added === 0 ? "" : ` — ${parts.join(", ")}`}
+          ✎ Bạn đã tuỳ chỉnh mục này{modified === 0 && added === 0 && daysWithMeta === 0 && !prefixEdited ? "" : ` — ${parts.join(", ")}`}
         </span>
         <button type="button" className="reset-category" onClick={onReset}>Đặt lại</button>
         <button type="button" aria-label="Xem chi tiết" aria-expanded={open} onClick={() => setOpen((v) => !v)}>

@@ -87,14 +87,13 @@ export function getStoredDays(state: AppState, category: Category): StoredDay[] 
 
 /**
  * Whether a step in an edited category differs from the shipped routine.
- * "added" — a new-* id with no default counterpart. "modified" — a default
- * step whose current form differs from routine.ts at the same position.
- * null — no override for the category, id not found, or unchanged.
+ * "added" — a `new-*` id (no shipped counterpart). "modified" — a default step
+ * whose current form differs from routine.ts. null — no override, id not found,
+ * or unchanged.
  *
- * The comparison is positional (the default at the step's current index). A
- * prior removeStep on an earlier sibling can therefore shift a step against a
- * different default; the marker may then be wrong (never a crash, never a data
- * change). Wave 2's stable ordering removes this ambiguity.
+ * The comparison is by the step's ORIGINAL index, encoded in its frozen id
+ * (`${category}.${dayIndex}.${phase}.${index}`), not its current array position
+ * — so reordering or deleting a sibling never mislabels an untouched step.
  */
 export function isStepEdited(
   state: AppState,
@@ -110,10 +109,12 @@ export function isStepEdited(
     ? phase === "steps" ? storedDay.steps : []
     : phase === "am" ? storedDay.am : phase === "pm" ? storedDay.pm : [];
 
-  const index = stored.findIndex((s) => s.id === id);
-  if (index === -1) return null;
+  const found = stored.find((s) => s.id === id);
+  if (found === undefined) return null;
 
-  if (id.startsWith(`${category}.${dayIndex}.${phase}.new-`)) return "added";
+  const last = id.slice(id.lastIndexOf(".") + 1);
+  if (last.startsWith("new-")) return "added";
+  const originalIndex = Number(last);
 
   const defaultDay = routine[category].days[dayIndex];
   // can't reuse phaseArrayOf: it aliases steps→am on face days
@@ -121,9 +122,9 @@ export function isStepEdited(
     ? phase === "steps" ? defaultDay.steps : []
     : phase === "am" ? defaultDay.am : phase === "pm" ? defaultDay.pm : [];
 
-  const def = defaultSteps[index];
+  const def = defaultSteps[originalIndex];
   if (def === undefined) return "added";
-  return routineStepsEqual(stored[index].step, def) ? null : "modified";
+  return routineStepsEqual(found.step, def) ? null : "modified";
 }
 
 function resolve(stored: StoredStep, week: number): ResolvedStep {
@@ -152,6 +153,7 @@ export function resolveDayForState(
 function cloneOverride(o: CategoryOverride): CategoryOverride {
   return {
     products: [...o.products],
+    focusPrefix: o.focusPrefix,
     days: o.days.map((day) =>
       "steps" in day
         ? { ...day, steps: day.steps.map((s) => ({ ...s })) }
@@ -233,6 +235,30 @@ export function removeStep(
   return withOverride(state, category, o);
 }
 
+export function moveStep(
+  state: AppState, category: Category, dayIndex: number, phase: StepPhase,
+  fromIndex: number, toIndex: number,
+): AppState {
+  const o0 = state.overrides?.[category];
+  const currentDay = o0 ? o0.days[dayIndex] : getStoredDays(state, category)[dayIndex];
+  const len = phaseArrayOf(currentDay, phase).length;
+  if (
+    fromIndex === toIndex ||
+    fromIndex < 0 || fromIndex >= len ||
+    toIndex < 0 || toIndex >= len
+  ) {
+    return state;
+  }
+
+  const o = ensureOverride(state, category);
+  const day = o.days[dayIndex];
+  const arr = [...phaseArrayOf(day, phase)];
+  const [moved] = arr.splice(fromIndex, 1);
+  arr.splice(toIndex, 0, moved);
+  o.days[dayIndex] = setPhaseArray(day, phase, arr);
+  return withOverride(state, category, o);
+}
+
 export function setStepVariant(
   state: AppState, category: Category, dayIndex: number, phase: StepPhase,
   id: string, variant: RoutineStep,
@@ -242,6 +268,62 @@ export function setStepVariant(
   const next = phaseArrayOf(day, phase).map((s) => (s.id === id ? { id, step: variant } : s));
   o.days[dayIndex] = setPhaseArray(day, phase, next);
   return withOverride(state, category, o);
+}
+
+const DEFAULT_FOCUS_PREFIX: Record<Category, string> = {
+  face: "Trọng tâm tối nay: ",
+  body: "",
+  hair: "",
+};
+
+export function updateDayMeta(
+  state: AppState, category: Category, dayIndex: number,
+  patch: { full?: string; focus?: string; type?: string },
+): AppState {
+  const o = ensureOverride(state, category);
+  const day = o.days[dayIndex];
+  if ("steps" in day) {
+    o.days[dayIndex] = {
+      ...day,
+      full: patch.full ?? day.full,
+      type: patch.type ?? day.type,
+    };
+  } else {
+    o.days[dayIndex] = {
+      ...day,
+      full: patch.full ?? day.full,
+      focus: patch.focus ?? day.focus,
+    };
+  }
+  return withOverride(state, category, o);
+}
+
+export function setFocusPrefix(state: AppState, category: Category, prefix: string): AppState {
+  const o = ensureOverride(state, category);
+  o.focusPrefix = prefix;
+  return withOverride(state, category, o);
+}
+
+export function getFocusPrefix(state: AppState, category: Category): string {
+  const p = state.overrides?.[category]?.focusPrefix;
+  return p ?? DEFAULT_FOCUS_PREFIX[category];
+}
+
+export function isDayMetaEdited(state: AppState, category: Category, dayIndex: number): boolean {
+  const override = state.overrides?.[category];
+  if (!override) return false;
+  const stored = override.days[dayIndex];
+  const def = routine[category].days[dayIndex];
+  if (stored.full !== def.full) return true;
+  if ("steps" in stored && isHairDay(def)) return stored.type !== def.type;
+  if (!("steps" in stored) && !isHairDay(def)) return stored.focus !== def.focus;
+  return false;
+}
+
+export function isFocusPrefixEdited(state: AppState, category: Category): boolean {
+  const p = state.overrides?.[category]?.focusPrefix;
+  if (p === undefined) return false;
+  return p !== DEFAULT_FOCUS_PREFIX[category];
 }
 
 export function resetCategory(state: AppState, category: Category): AppState {

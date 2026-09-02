@@ -53,6 +53,8 @@ export type StoredDay = StoredFaceOrBodyDay | StoredHairDay;
 export type CategoryOverride = {
   products: string[];
   days: StoredDay[];
+  /** The face "Trọng tâm tối nay: " prefix, category-level. Absent = shipped default. */
+  focusPrefix?: string;
 };
 
 export type FaceOrBodyDay = {
@@ -200,7 +202,8 @@ export function isCategoryOverride(value: unknown): value is CategoryOverride {
     value.products.every((entry: unknown) => typeof entry === "string") &&
     Array.isArray(value.days) &&
     value.days.length === 7 &&
-    value.days.every(isStoredDay)
+    value.days.every(isStoredDay) &&
+    (value.focusPrefix === undefined || typeof value.focusPrefix === "string")
   );
 }
 
