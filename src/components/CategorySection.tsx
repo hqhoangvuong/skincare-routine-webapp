@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Gallery from "./Gallery";
 import WeekProgress from "./WeekProgress";
 import DayTabs from "./DayTabs";
 import DayPanel from "./DayPanel";
+import CustomizationsStrip from "./CustomizationsStrip";
 import {
   addProduct, addStep, getCategoryData, removeProduct, removeStep,
   renameProduct, resetCategory, setStepVariant, updateStepTuple,
@@ -296,6 +297,21 @@ export default function CategorySection({
   // `editing` is local useState, so it resets for free whenever App.tsx
   // remounts this component with key={activeCategory} on category switch.
   const [editing, setEditing] = useState(false);
+  const [justAddedId, setJustAddedId] = useState<string | null>(null);
+  const [openStepId, setOpenStepId] = useState<string | null>(null);
+
+  // consume-once: clear the "just added" highlight on the render after it's applied
+  useEffect(() => {
+    if (justAddedId !== null) setJustAddedId(null);
+  }, [justAddedId]);
+
+  const hasOverride = Boolean(state.overrides?.[category]);
+
+  function handleReset() {
+    if (window.confirm("Đặt lại toàn bộ nội dung mục này về mặc định? Các thay đổi bạn đã tạo sẽ bị xoá.")) {
+      editContent((s) => resetCategory(s, category));
+    }
+  }
 
   const data = getCategoryData(state, category);
   const Hero = HERO[category];
@@ -309,23 +325,22 @@ export default function CategorySection({
         type="button"
         className="edit-toggle"
         aria-pressed={editing}
+        data-edited={hasOverride}
         aria-label="Chỉnh sửa nội dung"
         onClick={() => setEditing((v) => !v)}
       >
         {editing ? "✓ Xong" : "✎ Sửa nội dung"}
       </button>
-      {editing && (
-        <button
-          type="button"
-          className="reset-category"
-          onClick={() => {
-            if (window.confirm(`Đặt lại toàn bộ nội dung mục này về mặc định? Các thay đổi bạn đã tạo sẽ bị xoá.`)) {
-              editContent((s) => resetCategory(s, category));
-            }
+      {editing && hasOverride && (
+        <CustomizationsStrip
+          state={state}
+          category={category}
+          onReset={handleReset}
+          onJump={(dayIndex, id) => {
+            onSelectDay(dayIndex);
+            setOpenStepId(id);
           }}
-        >
-          Đặt lại theo mặc định
-        </button>
+        />
       )}
 
       <h2 className="section-title">{GALLERY_TITLE[category]}</h2>
@@ -340,15 +355,28 @@ export default function CategorySection({
       />
 
       {!editing && <WeekProgress category={category} state={state} />}
-      <DayTabs days={data.days} activeDay={activeDay} onSelect={onSelectDay} />
+      <DayTabs
+        days={data.days}
+        activeDay={activeDay}
+        onSelect={(i) => {
+          setOpenStepId(null);
+          onSelectDay(i);
+        }}
+      />
       <DayPanel
         category={category}
         state={state}
         dayIndex={activeDay}
         onToggleStep={onToggleStep}
         editing={editing}
+        justAddedId={justAddedId}
+        openStepId={openStepId}
         onEdit={{
-          onAddStep: (phase) => editContent((s) => addStep(s, category, activeDay, phase)),
+          onAddStep: (phase) => {
+            const n = state.stepSeq ?? 0;
+            setJustAddedId(`${category}.${activeDay}.${phase}.new-${n}`);
+            editContent((s) => addStep(s, category, activeDay, phase));
+          },
           onUpdateStep: (phase, id, product, note) =>
             editContent((s) => updateStepTuple(s, category, activeDay, phase, id, product, note)),
           onRemoveStep: (phase, id) => editContent((s) => removeStep(s, category, activeDay, phase, id)),
