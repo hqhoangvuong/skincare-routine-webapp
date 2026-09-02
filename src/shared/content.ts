@@ -87,14 +87,13 @@ export function getStoredDays(state: AppState, category: Category): StoredDay[] 
 
 /**
  * Whether a step in an edited category differs from the shipped routine.
- * "added" — a new-* id with no default counterpart. "modified" — a default
- * step whose current form differs from routine.ts at the same position.
- * null — no override for the category, id not found, or unchanged.
+ * "added" — a `new-*` id (no shipped counterpart). "modified" — a default step
+ * whose current form differs from routine.ts. null — no override, id not found,
+ * or unchanged.
  *
- * The comparison is positional (the default at the step's current index). A
- * prior removeStep on an earlier sibling can therefore shift a step against a
- * different default; the marker may then be wrong (never a crash, never a data
- * change). Wave 2's stable ordering removes this ambiguity.
+ * The comparison is by the step's ORIGINAL index, encoded in its frozen id
+ * (`${category}.${dayIndex}.${phase}.${index}`), not its current array position
+ * — so reordering or deleting a sibling never mislabels an untouched step.
  */
 export function isStepEdited(
   state: AppState,
@@ -110,10 +109,12 @@ export function isStepEdited(
     ? phase === "steps" ? storedDay.steps : []
     : phase === "am" ? storedDay.am : phase === "pm" ? storedDay.pm : [];
 
-  const index = stored.findIndex((s) => s.id === id);
-  if (index === -1) return null;
+  const found = stored.find((s) => s.id === id);
+  if (found === undefined) return null;
 
-  if (id.startsWith(`${category}.${dayIndex}.${phase}.new-`)) return "added";
+  const last = id.slice(id.lastIndexOf(".") + 1);
+  if (last.startsWith("new-")) return "added";
+  const originalIndex = Number(last);
 
   const defaultDay = routine[category].days[dayIndex];
   // can't reuse phaseArrayOf: it aliases steps→am on face days
@@ -121,9 +122,9 @@ export function isStepEdited(
     ? phase === "steps" ? defaultDay.steps : []
     : phase === "am" ? defaultDay.am : phase === "pm" ? defaultDay.pm : [];
 
-  const def = defaultSteps[index];
+  const def = defaultSteps[originalIndex];
   if (def === undefined) return "added";
-  return routineStepsEqual(stored[index].step, def) ? null : "modified";
+  return routineStepsEqual(found.step, def) ? null : "modified";
 }
 
 function resolve(stored: StoredStep, week: number): ResolvedStep {

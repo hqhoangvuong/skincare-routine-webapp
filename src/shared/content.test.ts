@@ -206,13 +206,22 @@ describe("isStepEdited", () => {
     expect(isStepEdited(s, "face", 0, "am", "face.0.am.does-not-exist")).toBeNull();
   });
 
-  it("does not tag shifted shipped steps as 'added' after removing an earlier sibling", () => {
+  it("does not mark a step as modified after an earlier sibling is removed", () => {
     const base = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
+    // face day 0 (Monday) AM has 5 steps; remove index 0, survivors shift to 0..3
     const s = removeStep(base, "face", 0, "am", stepId("face", 0, "am", 0));
     const day = s.overrides?.face?.days[0];
     if (!day || "steps" in day) throw new Error("expected a face day");
     for (const st of day.am) {
-      expect(isStepEdited(s, "face", 0, "am", st.id)).not.toBe("added");
+      expect(isStepEdited(s, "face", 0, "am", st.id)).toBeNull();
     }
+  });
+
+  it("still marks a genuinely edited step even after its index shifts", () => {
+    const base = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
+    const editedId = stepId("face", 0, "am", 3);
+    let s = updateStepTuple(base, "face", 0, "am", editedId, "Sản phẩm đổi", "");
+    s = removeStep(s, "face", 0, "am", stepId("face", 0, "am", 0)); // now editedId sits at array index 2
+    expect(isStepEdited(s, "face", 0, "am", editedId)).toBe("modified");
   });
 });
