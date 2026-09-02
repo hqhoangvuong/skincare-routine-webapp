@@ -112,4 +112,28 @@ describe("StepEditor", () => {
     );
     expect(screen.getByLabelText("Sản phẩm")).not.toHaveFocus();
   });
+
+  it("renders a dragHandle node before the toggle when given one", () => {
+    render(
+      <StepEditor
+        display={{ id: "x", product: "Toner", note: "" }}
+        raw={["Toner", ""]}
+        dragHandle={<button aria-label="handle">::</button>}
+        onUpdateTuple={vi.fn()} onSetVariant={vi.fn()} onRemove={vi.fn()}
+      />,
+    );
+    const head = document.querySelector(".step-edit-head");
+    if (!(head instanceof HTMLElement)) throw new Error("no head");
+    expect(head.firstElementChild).toHaveAttribute("aria-label", "handle");
+  });
+
+  it("renders no handle when dragHandle is omitted", () => {
+    render(
+      <StepEditor display={{ id: "x", product: "Toner", note: "" }} raw={["Toner", ""]}
+        onUpdateTuple={vi.fn()} onSetVariant={vi.fn()} onRemove={vi.fn()} />,
+    );
+    const head = document.querySelector(".step-edit-head");
+    if (!(head instanceof HTMLElement)) throw new Error("no head");
+    expect(head.firstElementChild?.getAttribute("aria-label")).toContain("Sửa bước");
+  });
 });

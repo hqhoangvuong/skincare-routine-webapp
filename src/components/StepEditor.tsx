@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import VariantEditor from "./VariantEditor";
 import ConfirmRemove from "./ConfirmRemove";
 import { isStepTuple, type RoutineStep } from "../shared/types";
@@ -12,6 +12,7 @@ export default function StepEditor({
   edited = null,
   initialOpen = false,
   autoFocusFirst = false,
+  dragHandle,
   onUpdateTuple,
   onSetVariant,
   onRemove,
@@ -21,6 +22,7 @@ export default function StepEditor({
   edited?: "modified" | "added" | null;
   initialOpen?: boolean;
   autoFocusFirst?: boolean;
+  dragHandle?: ReactNode;
   onUpdateTuple: (product: string, note: string) => void;
   onSetVariant: (next: RoutineStep) => void;
   onRemove: () => void;
@@ -39,6 +41,7 @@ export default function StepEditor({
   return (
     <li ref={liRef} className={cls}>
       <div className="step-edit-head">
+        {dragHandle}
         <button type="button" className="step-edit-toggle" aria-expanded={open}
           aria-label={`Sửa bước: ${display.product || "Bước chưa đặt tên"}${edited ? ` (${EDIT_TAG[edited]})` : ""}`}
           onClick={() => setOpen((v) => !v)}>
