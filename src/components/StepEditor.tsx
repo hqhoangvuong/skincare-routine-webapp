@@ -10,6 +10,7 @@ export default function StepEditor({
   display,
   raw,
   edited = null,
+  dragging = false,
   initialOpen = false,
   autoFocusFirst = false,
   dragHandle,
@@ -20,6 +21,7 @@ export default function StepEditor({
   display: ResolvedStep;
   raw: RoutineStep;
   edited?: "modified" | "added" | null;
+  dragging?: boolean;
   initialOpen?: boolean;
   autoFocusFirst?: boolean;
   dragHandle?: ReactNode;
@@ -36,7 +38,7 @@ export default function StepEditor({
     }
   }, [initialOpen]);
 
-  const cls = `step-edit${edited === "modified" ? " is-modified" : edited === "added" ? " is-added" : ""}`;
+  const cls = `step-edit${edited === "modified" ? " is-modified" : edited === "added" ? " is-added" : ""}${dragging ? " dragging" : ""}`;
 
   return (
     <li ref={liRef} className={cls}>

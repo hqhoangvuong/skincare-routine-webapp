@@ -26,7 +26,6 @@ export function useDragSort<T>(
 
   // Element rects keyed by original index, refreshed at pointerdown.
   const rectsRef = useRef<Map<number, DOMRect>>(new Map());
-  const listRef = useRef<(HTMLElement | null)[]>([]);
 
   const order: T[] = drag ? drag.order.map((i) => items[i]) : items;
   const draggingKey = drag ? keyOf(items[drag.fromIndex]) : null;
@@ -50,7 +49,7 @@ export function useDragSort<T>(
       // find the visual slot whose vertical midpoint the pointer has crossed
       const y = e.clientY;
       const currentVisual = d.order.indexOf(d.fromIndex);
-      const rects = d.order.map((origIdx) => rectsRef.current.get(origIdx));
+      const rects = d.order.map((_, i) => rectsRef.current.get(i));
       let target = currentVisual;
       for (let i = 0; i < rects.length; i += 1) {
         const r = rects[i];
@@ -110,9 +109,6 @@ export function useDragSort<T>(
     }),
     [items, onReorder],
   );
-
-  // keep listRef length in step with items (used only defensively)
-  listRef.current = items.map(() => null);
 
   return { order, handleProps, draggingKey };
 }

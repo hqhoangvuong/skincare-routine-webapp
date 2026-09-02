@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import CustomizationsStrip from "./CustomizationsStrip";
 import { makeDefaultState } from "../shared/defaults";
-import { addStep, stepId, updateDayMeta, updateStepTuple } from "../shared/content";
+import { addStep, setFocusPrefix, stepId, updateDayMeta, updateStepTuple } from "../shared/content";
 
 const start = new Date("2026-08-24T00:00:00Z");
 
@@ -34,6 +34,14 @@ describe("CustomizationsStrip", () => {
     s = updateDayMeta(s, "face", 2, { focus: "BHA nhẹ" });
     render(<CustomizationsStrip state={s} category="face" onJump={vi.fn()} onReset={vi.fn()} />);
     expect(screen.getByText(/1 ngày đổi tiêu đề/)).toBeInTheDocument();
+  });
+
+  it("shows a prefix line (not a day-meta line) when only the focus prefix changed", () => {
+    let s = makeDefaultState(start);
+    s = setFocusPrefix(s, "face", "Tối nay: ");
+    render(<CustomizationsStrip state={s} category="face" onJump={vi.fn()} onReset={vi.fn()} />);
+    expect(screen.getByText(/tiền tố nhãn đã đổi/)).toBeInTheDocument();
+    expect(screen.queryByText(/ngày đổi tiêu đề/)).toBeNull();
   });
 
   it("no day-meta line when only steps changed", () => {

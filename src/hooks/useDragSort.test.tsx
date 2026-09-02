@@ -116,6 +116,37 @@ describe("useDragSort — pointer", () => {
     expect(onReorder).toHaveBeenCalledWith(0, 1);
   });
 
+  it("a drag across two midpoints commits a single onReorder(0, 2)", () => {
+    const onReorder = vi.fn();
+    render(<List items={rows} onReorder={onReorder} />);
+    const buttons = screen.getAllByRole("button");
+    // 3 rows, 40px tall, stacked from y=0 → midpoints at 20 / 60 / 100
+    const lis = buttons.map((b) => b.closest("li"));
+    lis.forEach((li, i) => {
+      if (!li) throw new Error("li");
+      vi.spyOn(li, "getBoundingClientRect").mockReturnValue({
+        top: i * 40, bottom: i * 40 + 40, height: 40, left: 0, right: 100, width: 100, x: 0, y: i * 40, toJSON: () => ({}),
+      });
+    });
+    const handle = buttons[0];
+    act(() => {
+      handle.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientY: 10, pointerId: 1 }));
+    });
+    // past row 1's midpoint (60)
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, clientY: 65, pointerId: 1 }));
+    });
+    // well past row 2's midpoint (100)
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, clientY: 150, pointerId: 1 }));
+    });
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, clientY: 150, pointerId: 1 }));
+    });
+    expect(onReorder).toHaveBeenCalledTimes(1);
+    expect(onReorder).toHaveBeenCalledWith(0, 2);
+  });
+
   it("a pointerdown sets data-dragging on its row", () => {
     const onReorder = vi.fn();
     render(<List items={rows} onReorder={onReorder} />);

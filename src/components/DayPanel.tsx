@@ -7,6 +7,7 @@ import {
   getFocusPrefix,
   getStoredDays,
   isDayMetaEdited,
+  isFocusPrefixEdited,
   isStepEdited,
   resolveDayForState,
   type ResolvedDay,
@@ -123,6 +124,7 @@ function PhaseBody({
                 display={rs}
                 raw={stored.step}
                 edited={isStepEdited(state, category, dayIndex, phase, rs.id)}
+                dragging={draggingKey === rs.id}
                 initialOpen={rs.id === justAddedId || rs.id === openStepId}
                 autoFocusFirst={rs.id === justAddedId}
                 dragHandle={
@@ -222,6 +224,7 @@ function DayHeaderEdit({
   );
   const prefixBuf = useBufferedText(getFocusPrefix(state, category), (v) => onEdit.onSetFocusPrefix(v));
   const edited = isDayMetaEdited(state, category, dayIndex);
+  const prefixEdited = isFocusPrefixEdited(state, category);
 
   return (
     <div className="day-header-edit">
@@ -242,6 +245,7 @@ function DayHeaderEdit({
       {category === "face" && (
         <label>
           Tiền tố nhãn (áp dụng cả mục)
+          {prefixEdited && <span className="step-edit-tag">đã đổi</span>}
           <input type="text" value={prefixBuf.value} onChange={prefixBuf.onChange}
             onFocus={prefixBuf.onFocus} onBlur={prefixBuf.onBlur} />
         </label>

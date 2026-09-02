@@ -312,13 +312,18 @@ export function getFocusPrefix(state: AppState, category: Category): string {
 export function isDayMetaEdited(state: AppState, category: Category, dayIndex: number): boolean {
   const override = state.overrides?.[category];
   if (!override) return false;
-  if (override.focusPrefix !== undefined) return true;
   const stored = override.days[dayIndex];
   const def = routine[category].days[dayIndex];
   if (stored.full !== def.full) return true;
   if ("steps" in stored && isHairDay(def)) return stored.type !== def.type;
   if (!("steps" in stored) && !isHairDay(def)) return stored.focus !== def.focus;
   return false;
+}
+
+export function isFocusPrefixEdited(state: AppState, category: Category): boolean {
+  const p = state.overrides?.[category]?.focusPrefix;
+  if (p === undefined) return false;
+  return p !== DEFAULT_FOCUS_PREFIX[category];
 }
 
 export function resetCategory(state: AppState, category: Category): AppState {

@@ -187,7 +187,10 @@ describe("CategorySection", () => {
     await userEvent.clear(nameInput);
     await userEvent.type(nameInput, "Ngày BHA");
     await userEvent.tab();
-    expect(screen.getByLabelText("Tên ngày")).toHaveValue("Ngày BHA");
+    // assert something rendered downstream of committed state: the day-name badge
+    // in DayPanel only updates if the commit reached state (a no-op handler leaves
+    // it at the default day name).
+    expect(screen.getByText("Ngày BHA")).toBeInTheDocument();
   });
 
   it("editing the focus prefix in edit mode persists (face category only)", async () => {
@@ -210,6 +213,8 @@ describe("CategorySection", () => {
     await userEvent.clear(prefixInput);
     await userEvent.type(prefixInput, "Tối nay: ");
     await userEvent.tab();
-    expect(screen.getByLabelText("Tiền tố nhãn (áp dụng cả mục)")).toHaveValue("Tối nay: ");
+    // the face focus badge renders `${prefix}${day.focus}`; `/^Tối nay: /` matches
+    // the committed badge but not the shipped default `"Trọng tâm tối nay: …"`.
+    expect(screen.getByText(/^Tối nay: /)).toBeInTheDocument();
   });
 });

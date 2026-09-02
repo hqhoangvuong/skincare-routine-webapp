@@ -119,9 +119,7 @@ worker/
   edit a day's `full` name and its `focus` (face/body) or `type` (hair), plus
   the face-only category-level `focusPrefix` (`CategoryOverride.focusPrefix?:
   string` — an additive optional field; `AppState` is still `version: 3`, no
-  migration). `isStepEdited` now compares each step against the shipped default
-  at its **original** (id-encoded) index, not its current array position — so a
-  reorder or a sibling delete never mislabels an untouched step.
+  migration).
 - **A step is a `RoutineStep`: a plain `[product, note]` tuple, or a `ConditionalStep`.** Two conditional
   kinds: `threshold` (`{ kind, untilWeek, before, from }` — `before` for program-weeks `1..untilWeek`,
   `from` after) and `cycle` (`{ kind, length: 2|4, weeks }` — indexed by `(week-1) % length`).

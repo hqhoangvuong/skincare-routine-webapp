@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { getStoredDays, isStepEdited } from "../shared/content";
-import { routine } from "../shared/routine";
+import { getStoredDays, isDayMetaEdited, isFocusPrefixEdited, isStepEdited } from "../shared/content";
 import type { AppState, Category, StepPhase, StoredStep } from "../shared/types";
 
 const DAY_SHORT = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
@@ -56,26 +55,21 @@ export default function CustomizationsStrip({
   const modified = changes.filter((c) => c.kind === "modified").length;
   const added = changes.filter((c) => c.kind === "added").length;
 
-  const daysWithMeta = getStoredDays(state, category).filter((day, dayIndex) => {
-    const def = routine[category].days[dayIndex];
-    if (day.full !== def.full) return true;
-    if ("steps" in day && "steps" in def) return day.type !== def.type;
-    if (!("steps" in day) && !("steps" in def)) return day.focus !== def.focus;
-    return false;
-  }).length;
-  const prefixChanged = state.overrides?.[category]?.focusPrefix !== undefined;
-  const dayMetaCount = daysWithMeta + (prefixChanged ? 1 : 0);
+  const daysWithMeta = getStoredDays(state, category)
+    .filter((_, dayIndex) => isDayMetaEdited(state, category, dayIndex)).length;
+  const prefixEdited = isFocusPrefixEdited(state, category);
 
   const parts: string[] = [];
   if (modified > 0) parts.push(`${modified} bước đã đổi`);
   if (added > 0) parts.push(`${added} bước mới`);
-  if (dayMetaCount > 0) parts.push(`${dayMetaCount} ngày đổi tiêu đề`);
+  if (daysWithMeta > 0) parts.push(`${daysWithMeta} ngày đổi tiêu đề`);
+  if (prefixEdited) parts.push("tiền tố nhãn đã đổi");
 
   return (
     <div className="customizations">
       <div className="customizations-head">
         <span>
-          ✎ Bạn đã tuỳ chỉnh mục này{modified === 0 && added === 0 && dayMetaCount === 0 ? "" : ` — ${parts.join(", ")}`}
+          ✎ Bạn đã tuỳ chỉnh mục này{modified === 0 && added === 0 && daysWithMeta === 0 && !prefixEdited ? "" : ` — ${parts.join(", ")}`}
         </span>
         <button type="button" className="reset-category" onClick={onReset}>Đặt lại</button>
         <button type="button" aria-label="Xem chi tiết" aria-expanded={open} onClick={() => setOpen((v) => !v)}>

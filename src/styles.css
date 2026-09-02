@@ -273,9 +273,17 @@ footer{margin-top:40px;text-align:center;font-size:12.5px;color:var(--rose-deep,
 
 .drag-handle{
   border:none;background:none;color:var(--rose-deep);font-size:16px;line-height:1;
-  padding:2px 4px;cursor:grab;touch-action:none;
+  min-width:44px;min-height:44px;
+  display:inline-flex;align-items:center;justify-content:center;
+  cursor:grab;touch-action:none;
 }
 .drag-handle.is-dragging{cursor:grabbing;opacity:.5;}
+.drag-handle:focus-visible{outline:2px solid var(--rose-deep, #b76e79);outline-offset:2px;}
+
+.step-edit.dragging{
+  opacity:1;background:#fff;border-radius:8px;
+  box-shadow:0 4px 12px -2px rgba(120,90,90,.28);
+}
 
 .day-header-edit{
   margin:0 0 14px;padding:12px;border:1px solid var(--line);border-radius:12px;
