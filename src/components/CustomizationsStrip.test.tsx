@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import CustomizationsStrip from "./CustomizationsStrip";
 import { makeDefaultState } from "../shared/defaults";
-import { addStep, stepId, updateStepTuple } from "../shared/content";
+import { addStep, stepId, updateDayMeta, updateStepTuple } from "../shared/content";
 
 const start = new Date("2026-08-24T00:00:00Z");
 
@@ -27,6 +27,20 @@ describe("CustomizationsStrip", () => {
     await userEvent.click(screen.getByRole("button", { name: /xem chi tiết/i }));
     await userEvent.click(screen.getByRole("button", { name: /T6 · Tối · Đổi/ }));
     expect(onJump).toHaveBeenCalledWith(4, id);
+  });
+
+  it("shows a day-meta count line when a day's header was edited", () => {
+    let s = makeDefaultState(start);
+    s = updateDayMeta(s, "face", 2, { focus: "BHA nhẹ" });
+    render(<CustomizationsStrip state={s} category="face" onJump={vi.fn()} onReset={vi.fn()} />);
+    expect(screen.getByText(/1 ngày đổi tiêu đề/)).toBeInTheDocument();
+  });
+
+  it("no day-meta line when only steps changed", () => {
+    let s = makeDefaultState(start);
+    s = updateStepTuple(s, "face", 0, "am", stepId("face", 0, "am", 0), "x", "");
+    render(<CustomizationsStrip state={s} category="face" onJump={vi.fn()} onReset={vi.fn()} />);
+    expect(screen.queryByText(/ngày đổi tiêu đề/)).toBeNull();
   });
 
   it("Đặt lại calls onReset", async () => {
