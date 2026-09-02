@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 import { isStepTuple, isThresholdVariant, type RoutineStep, type StepTuple } from "../shared/types";
+import { useBufferedText } from "../hooks/useBufferedText";
 
 type Kind = "plain" | "threshold" | "cycle";
 
@@ -21,25 +22,56 @@ function padWeeks(weeks: StepTuple[], length: 2 | 4): StepTuple[] {
 }
 
 function TupleFields({
-  label, value, onChange,
+  label, value, onChange, autoFocusFirst = false,
 }: {
   label: { product: string; note: string };
   value: StepTuple;
   onChange: (t: StepTuple) => void;
+  autoFocusFirst?: boolean;
 }) {
+  const productBuf = useBufferedText(value[0], (p) => onChange([p, value[1]]));
+  const noteBuf = useBufferedText(value[1], (n) => onChange([value[0], n]));
+  const firstRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (autoFocusFirst) firstRef.current?.focus();
+  }, [autoFocusFirst]);
   return (
     <div className="variant-branch">
       <label>
         {label.product}
-        <input type="text" value={value[0]} placeholder="Bước chưa đặt tên"
-          onChange={(e) => onChange([e.target.value, value[1]])} />
+        <input
+          ref={firstRef}
+          type="text"
+          placeholder="Tên sản phẩm / bước"
+          value={productBuf.value}
+          onChange={productBuf.onChange}
+          onFocus={productBuf.onFocus}
+          onBlur={productBuf.onBlur}
+        />
       </label>
       <label>
         {label.note}
-        <input type="text" value={value[1]}
-          onChange={(e) => onChange([value[0], e.target.value])} />
+        <input
+          type="text"
+          placeholder="Ghi chú (không bắt buộc)"
+          value={noteBuf.value}
+          onChange={noteBuf.onChange}
+          onFocus={noteBuf.onFocus}
+          onBlur={noteBuf.onBlur}
+        />
       </label>
     </div>
+  );
+}
+
+function UntilWeekField({ value, onCommit }: { value: number; onCommit: (n: number) => void }) {
+  const buf = useBufferedText(String(value), (s) => onCommit(coerceWeek(s)));
+  return (
+    <label>
+      Đổi từ tuần thứ
+      <input type="number" min={1} value={buf.value}
+        onChange={buf.onChange} onFocus={buf.onFocus} onBlur={buf.onBlur} />
+    </label>
   );
 }
 
@@ -52,18 +84,6 @@ export default function VariantEditor({
 }) {
   const kind = kindOf(value);
   const base = firstTuple(value);
-
-  // The threshold week field holds a raw string locally so a half-typed or
-  // cleared value isn't snapped to a number under the user's cursor; the
-  // coerced number is only pushed to the parent on blur.
-  const thresholdUntilWeek =
-    !isStepTuple(value) && value.kind === "threshold" ? value.untilWeek : null;
-  const [untilWeekDraft, setUntilWeekDraft] = useState(
-    thresholdUntilWeek === null ? "" : String(thresholdUntilWeek),
-  );
-  useEffect(() => {
-    if (thresholdUntilWeek !== null) setUntilWeekDraft(String(thresholdUntilWeek));
-  }, [thresholdUntilWeek]);
 
   function switchKind(next: Kind): void {
     if (next === kind) return;
@@ -91,12 +111,7 @@ export default function VariantEditor({
 
       {kind === "threshold" && !isStepTuple(value) && value.kind === "threshold" && (
         <>
-          <label>
-            Đổi từ tuần thứ
-            <input type="number" min={1} value={untilWeekDraft}
-              onChange={(e) => setUntilWeekDraft(e.target.value)}
-              onBlur={(e) => onChange({ ...value, untilWeek: coerceWeek(e.target.value) })} />
-          </label>
+          <UntilWeekField value={value.untilWeek} onCommit={(n) => onChange({ ...value, untilWeek: n })} />
           <TupleFields
             label={{ product: `Sản phẩm — tuần 1–${value.untilWeek}`, note: `Ghi chú — tuần 1–${value.untilWeek}` }}
             value={value.before}

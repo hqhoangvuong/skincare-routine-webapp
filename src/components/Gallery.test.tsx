@@ -19,15 +19,23 @@ describe("Gallery", () => {
     expect(inputs[0]).toHaveValue("Cleanser");
     expect(screen.getByRole("textbox", { name: "Tên sản phẩm 1" })).toBe(inputs[0]);
 
-    await userEvent.type(inputs[1], "!");
-    expect(onEdit.onRename).toHaveBeenLastCalledWith(1, "Toner!");
-
     // the remove button names the product it removes when the name is non-empty
     await userEvent.click(screen.getByRole("button", { name: "Xoá Cleanser" }));
     expect(onEdit.onRemove).toHaveBeenCalledWith(0);
 
     await userEvent.click(screen.getByRole("button", { name: /thêm sản phẩm/i }));
     expect(onEdit.onAdd).toHaveBeenCalled();
+  });
+
+  it("buffers product edits — onRename fires once on blur, not per keystroke", async () => {
+    const onEdit = { onRename: vi.fn(), onRemove: vi.fn(), onAdd: vi.fn() };
+    render(<Gallery products={["Toner"]} editing onEdit={onEdit} />);
+    const input = screen.getByRole("textbox", { name: "Tên sản phẩm 1" });
+    await userEvent.type(input, "!");
+    expect(onEdit.onRename).not.toHaveBeenCalled();
+    await userEvent.tab();
+    expect(onEdit.onRename).toHaveBeenCalledTimes(1);
+    expect(onEdit.onRename).toHaveBeenCalledWith(0, "Toner!");
   });
 
   it("shows a placeholder and a positional remove label for an empty product name", () => {

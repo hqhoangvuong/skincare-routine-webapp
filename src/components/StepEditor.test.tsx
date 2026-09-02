@@ -28,6 +28,8 @@ describe("StepEditor", () => {
       onUpdateTuple={onUpdateTuple} onSetVariant={onSetVariant} onRemove={vi.fn()} />);
     await userEvent.click(screen.getByRole("button", { name: /sửa bước/i }));
     await userEvent.type(screen.getByLabelText("Sản phẩm"), "!");
+    expect(onUpdateTuple).not.toHaveBeenCalled(); // buffered — commits on blur
+    await userEvent.tab();
     expect(onUpdateTuple).toHaveBeenLastCalledWith("Toner Cocoon Sen!", "");
     await userEvent.selectOptions(screen.getByLabelText("Kiểu đổi theo tuần"), "cycle");
     expect(onSetVariant).toHaveBeenCalledWith({
