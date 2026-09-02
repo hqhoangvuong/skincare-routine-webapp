@@ -5,6 +5,7 @@ import {
   getCategoryData, resolveDayForState, stepId, isStepEdited,
   addProduct, renameProduct, removeProduct,
   addStep, updateStepTuple, removeStep, setStepVariant, resetCategory,
+  getStoredDays,
 } from "./content";
 import type { AppState, CategoryOverride, ThresholdVariant } from "./types";
 
@@ -148,6 +149,18 @@ describe("mutation helpers", () => {
     const s = resetCategory(two, "face");
     expect(s.overrides?.face).toBeUndefined();
     expect(s.overrides?.hair?.products[0]).toBe("H");
+  });
+
+  it("cloneOverride carries focusPrefix through a later CoW edit", () => {
+    const base = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
+    // seed an override that already has a focusPrefix, then trigger another CoW edit
+    const seeded = { ...base, overrides: { face: {
+      products: [...routine.face.products],
+      days: getStoredDays(base, "face"),
+      focusPrefix: "Tối nay: ",
+    } } };
+    const after = renameProduct(seeded, "face", 0, "X");
+    expect(after.overrides?.face?.focusPrefix).toBe("Tối nay: ");
   });
 });
 

@@ -152,6 +152,7 @@ export function resolveDayForState(
 function cloneOverride(o: CategoryOverride): CategoryOverride {
   return {
     products: [...o.products],
+    focusPrefix: o.focusPrefix,
     days: o.days.map((day) =>
       "steps" in day
         ? { ...day, steps: day.steps.map((s) => ({ ...s })) }
