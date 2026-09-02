@@ -6,6 +6,7 @@ import {
   addProduct, renameProduct, removeProduct,
   addStep, updateStepTuple, removeStep, setStepVariant, resetCategory,
   getStoredDays, moveStep,
+  updateDayMeta, setFocusPrefix, getFocusPrefix, isDayMetaEdited,
 } from "./content";
 import type { AppState, CategoryOverride, ThresholdVariant } from "./types";
 
@@ -256,5 +257,50 @@ describe("moveStep", () => {
   it("does not create an override for other categories", () => {
     const s = moveStep(base, "face", 0, "am", 0, 1);
     expect(s.overrides?.hair).toBeUndefined();
+  });
+});
+
+describe("day metadata helpers", () => {
+  const base = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
+
+  it("updateDayMeta sets full on a face day and clones the category", () => {
+    const s = updateDayMeta(base, "face", 0, { full: "Thứ Hai (BHA)" });
+    const day = s.overrides?.face?.days[0];
+    if (!day || "steps" in day) throw new Error("face day");
+    expect(day.full).toBe("Thứ Hai (BHA)");
+    expect(s.overrides?.hair).toBeUndefined();
+  });
+
+  it("updateDayMeta applies focus to a face day and ignores a type key", () => {
+    const s = updateDayMeta(base, "face", 0, { focus: "BHA nhẹ", type: "ignored" });
+    const day = s.overrides?.face?.days[0];
+    if (!day || "steps" in day) throw new Error("face day");
+    expect(day.focus).toBe("BHA nhẹ");
+    expect("type" in day).toBe(false);
+  });
+
+  it("updateDayMeta applies type to a hair day and ignores a focus key", () => {
+    const s = updateDayMeta(base, "hair", 0, { type: "Ngày gội mới", focus: "ignored" });
+    const day = s.overrides?.hair?.days[0];
+    if (!day || !("steps" in day)) throw new Error("hair day");
+    expect(day.type).toBe("Ngày gội mới");
+  });
+
+  it("getFocusPrefix returns the shipped default, then the override value", () => {
+    expect(getFocusPrefix(base, "face")).toBe("Trọng tâm tối nay: ");
+    expect(getFocusPrefix(base, "body")).toBe("");
+    expect(getFocusPrefix(base, "hair")).toBe("");
+    const s = setFocusPrefix(base, "face", "Tối nay: ");
+    expect(getFocusPrefix(s, "face")).toBe("Tối nay: ");
+    const cleared = setFocusPrefix(base, "face", "");
+    expect(getFocusPrefix(cleared, "face")).toBe(""); // explicit empty, not the default
+  });
+
+  it("isDayMetaEdited: false for no override / cloned-but-unedited, true after an edit", () => {
+    expect(isDayMetaEdited(base, "face", 0)).toBe(false);
+    const cloned = renameProduct(base, "face", 0, "X"); // CoW clone, day meta untouched
+    expect(isDayMetaEdited(cloned, "face", 0)).toBe(false);
+    expect(isDayMetaEdited(updateDayMeta(base, "face", 0, { focus: "z" }), "face", 0)).toBe(true);
+    expect(isDayMetaEdited(setFocusPrefix(base, "face", "z"), "face", 3)).toBe(true); // any day of that category
   });
 });

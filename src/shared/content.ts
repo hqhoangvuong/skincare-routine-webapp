@@ -270,6 +270,57 @@ export function setStepVariant(
   return withOverride(state, category, o);
 }
 
+const DEFAULT_FOCUS_PREFIX: Record<Category, string> = {
+  face: "Trọng tâm tối nay: ",
+  body: "",
+  hair: "",
+};
+
+export function updateDayMeta(
+  state: AppState, category: Category, dayIndex: number,
+  patch: { full?: string; focus?: string; type?: string },
+): AppState {
+  const o = ensureOverride(state, category);
+  const day = o.days[dayIndex];
+  if ("steps" in day) {
+    o.days[dayIndex] = {
+      ...day,
+      full: patch.full ?? day.full,
+      type: patch.type ?? day.type,
+    };
+  } else {
+    o.days[dayIndex] = {
+      ...day,
+      full: patch.full ?? day.full,
+      focus: patch.focus ?? day.focus,
+    };
+  }
+  return withOverride(state, category, o);
+}
+
+export function setFocusPrefix(state: AppState, category: Category, prefix: string): AppState {
+  const o = ensureOverride(state, category);
+  o.focusPrefix = prefix;
+  return withOverride(state, category, o);
+}
+
+export function getFocusPrefix(state: AppState, category: Category): string {
+  const p = state.overrides?.[category]?.focusPrefix;
+  return p ?? DEFAULT_FOCUS_PREFIX[category];
+}
+
+export function isDayMetaEdited(state: AppState, category: Category, dayIndex: number): boolean {
+  const override = state.overrides?.[category];
+  if (!override) return false;
+  if (override.focusPrefix !== undefined) return true;
+  const stored = override.days[dayIndex];
+  const def = routine[category].days[dayIndex];
+  if (stored.full !== def.full) return true;
+  if ("steps" in stored && isHairDay(def)) return stored.type !== def.type;
+  if (!("steps" in stored) && !isHairDay(def)) return stored.focus !== def.focus;
+  return false;
+}
+
 export function resetCategory(state: AppState, category: Category): AppState {
   if (!state.overrides?.[category]) return state;
   const nextOverrides = { ...state.overrides };
