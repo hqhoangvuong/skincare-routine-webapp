@@ -5,7 +5,7 @@ import DayTabs from "./DayTabs";
 import DayPanel from "./DayPanel";
 import CustomizationsStrip from "./CustomizationsStrip";
 import {
-  addProduct, addStep, getCategoryData, moveStep, removeProduct, removeStep,
+  addProduct, addStep, getCategoryData, moveProduct, moveStep, removeProduct, removeStep,
   renameProduct, resetCategory, setFocusPrefix, setStepVariant, updateDayMeta, updateStepTuple,
 } from "../shared/content";
 import type { AppState, Category } from "../shared/types";
@@ -346,11 +346,18 @@ export default function CategorySection({
       <h2 className="section-title">{GALLERY_TITLE[category]}</h2>
       <Gallery
         products={data.products}
+        state={state}
+        category={category}
         editing={editing}
         onEdit={{
           onRename: (i, name) => editContent((s) => renameProduct(s, category, i, name)),
           onRemove: (i) => editContent((s) => removeProduct(s, category, i)),
           onAdd: () => editContent((s) => addProduct(s, category)),
+          onMove: (from, to) => editContent((s) => moveProduct(s, category, from, to)),
+          onJump: (dayIndex, id) => {
+            onSelectDay(dayIndex);
+            setOpenStepId(id);
+          },
         }}
       />
 

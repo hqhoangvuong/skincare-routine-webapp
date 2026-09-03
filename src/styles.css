@@ -285,6 +285,17 @@ footer{margin-top:40px;text-align:center;font-size:12.5px;color:var(--rose-deep,
   box-shadow:0 4px 12px -2px rgba(120,90,90,.28);
 }
 
+.gallery-edit-list { list-style: none; margin: 0; padding: 0; }
+.prod-edit-head { display: flex; align-items: center; gap: 8px; }
+.prod-edit.dragging { opacity: 1; background: #fff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); border-radius: 10px; }
+.prod-edit.drop-target { box-shadow: inset 0 2px 0 var(--rose); }
+.prod-usage { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 2px 42px; }
+.prod-usage button {
+  font-size: 12px; padding: 2px 8px; border-radius: 999px;
+  border: 1px solid var(--line, #e7d8da); background: #fff; color: #5b4a4d; cursor: pointer;
+}
+.prod-usage-empty { font-size: 12px; color: #a6898d; margin: 4px 0 2px 42px; }
+
 .day-header-edit{
   margin:0 0 14px;padding:12px;border:1px solid var(--line);border-radius:12px;
   background:var(--blush);display:grid;gap:8px;
