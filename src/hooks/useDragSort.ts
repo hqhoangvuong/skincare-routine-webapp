@@ -4,13 +4,14 @@ import type { KeyboardEvent, PointerEvent } from "react";
 type DragState = {
   pointerId: number;
   fromIndex: number;
-  order: number[]; // indices into the ORIGINAL items, in current visual order
+  order: number[]; // indices into the ORIGINAL items, in current (would-be) visual order
 };
 
 export function useDragSort<T>(
   items: T[],
-  keyOf: (item: T) => string,
+  keyOf: (item: T, index: number) => string,
   onReorder: (fromIndex: number, toIndex: number) => void,
+  opts?: { mode?: "live" | "onDrop"; itemNoun?: string },
 ): {
   order: T[];
   handleProps: (index: number) => {
@@ -19,34 +20,61 @@ export function useDragSort<T>(
     "aria-label": string;
   };
   draggingKey: string | null;
+  dropTargetKey: string | null;
+  dropBelow: boolean;
 } {
+  const mode = opts?.mode ?? "live";
+  const noun = opts?.itemNoun ?? "mục";
+
   const [drag, setDrag] = useState<DragState | null>(null);
   const dragRef = useRef<DragState | null>(null);
   dragRef.current = drag;
 
-  // Element rects keyed by original index, refreshed at pointerdown.
   const rectsRef = useRef<Map<number, DOMRect>>(new Map());
 
-  const order: T[] = drag ? drag.order.map((i) => items[i]) : items;
-  const draggingKey = drag ? keyOf(items[drag.fromIndex]) : null;
+  // M7: a stale index (list shrank under an in-progress drag) never dereferences.
+  const dragValid = drag !== null && drag.fromIndex < items.length;
+
+  const liveOrder: T[] =
+    drag && mode === "live"
+      ? drag.order.filter((i) => i < items.length).map((i) => items[i])
+      : items;
+  const order: T[] = liveOrder;
+
+  const wouldLandAt = drag ? drag.order.indexOf(drag.fromIndex) : -1;
+  const draggingKey = dragValid ? keyOf(items[drag.fromIndex], drag.fromIndex) : null;
+  // M2: at pointerdown wouldLandAt === fromIndex, which would flag the dragged row as its
+  // own drop target — suppress that so a row never gets both `dragging` and `drop-target`.
+  const dropActive =
+    dragValid && mode === "onDrop" && wouldLandAt >= 0 && wouldLandAt < items.length &&
+    drag !== null && wouldLandAt !== drag.fromIndex;
+  const dropTargetKey = dropActive ? keyOf(items[wouldLandAt], wouldLandAt) : null;
+  // M1: the indicator draws on the drop-target row's top edge; on a downward drag the row
+  // that occupies the landing slot sits *above* where the dragged item lands, so the caller
+  // needs to move the line to that row's bottom edge instead.
+  const dropBelow = dropActive && drag !== null && wouldLandAt > drag.fromIndex;
 
   const endDrag = useCallback(() => {
     const d = dragRef.current;
     setDrag(null);
-    if (!d) return;
+    if (!d || d.fromIndex >= items.length) return;
     const finalIndex = d.order.indexOf(d.fromIndex);
-    if (finalIndex !== -1 && finalIndex !== d.fromIndex) {
+    // M11: if the list shrank mid-drag but `fromIndex` stayed valid, `finalIndex` can point
+    // past the new end — range-guard here rather than leaning on moveProduct/moveStep to do it.
+    if (finalIndex !== -1 && finalIndex !== d.fromIndex && finalIndex < items.length) {
       onReorder(d.fromIndex, finalIndex);
     }
-  }, [onReorder]);
+  }, [onReorder, items.length]);
 
   useEffect(() => {
     if (!drag) return;
     const handleMove = (e: globalThis.PointerEvent) => {
       if (e.pointerId !== drag.pointerId) return;
       const d = dragRef.current;
-      if (!d) return;
-      // find the visual slot whose vertical midpoint the pointer has crossed
+      if (!d || d.fromIndex >= items.length) {
+        endDrag();
+        return;
+      }
       const y = e.clientY;
       const currentVisual = d.order.indexOf(d.fromIndex);
       const rects = d.order.map((_, i) => rectsRef.current.get(i));
@@ -78,13 +106,12 @@ export function useDragSort<T>(
       window.removeEventListener("pointerup", handleUp);
       window.removeEventListener("pointercancel", handleUp);
     };
-  }, [drag, endDrag]);
+  }, [drag, endDrag, items.length]);
 
   const handleProps = useCallback(
     (index: number) => ({
-      "aria-label": `Kéo để sắp xếp bước ${index + 1}`,
+      "aria-label": `Kéo hoặc dùng phím mũi tên lên/xuống để sắp xếp ${noun} ${index + 1}`,
       onPointerDown: (e: PointerEvent) => {
-        // snapshot every sibling <li>'s rect for the drag
         const handleEl = e.currentTarget;
         const li = handleEl.closest("li");
         const listEl = li?.parentElement;
@@ -97,6 +124,7 @@ export function useDragSort<T>(
         if (typeof handleEl.setPointerCapture === "function") {
           handleEl.setPointerCapture(e.pointerId);
         }
+        // order is snapshotted at pointerdown; items appended mid-drag are not draggable until the gesture ends (unreachable in current UI).
         setDrag({ pointerId: e.pointerId, fromIndex: index, order: items.map((_, i) => i) });
       },
       onKeyDown: (e: KeyboardEvent) => {
@@ -107,8 +135,8 @@ export function useDragSort<T>(
         onReorder(index, to);
       },
     }),
-    [items, onReorder],
+    [items, onReorder, noun],
   );
 
-  return { order, handleProps, draggingKey };
+  return { order, handleProps, draggingKey, dropTargetKey, dropBelow };
 }

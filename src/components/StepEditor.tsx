@@ -14,6 +14,9 @@ export default function StepEditor({
   initialOpen = false,
   autoFocusFirst = false,
   dragHandle,
+  datalistId,
+  shelfNames,
+  onAddToShelf,
   onUpdateTuple,
   onSetVariant,
   onRemove,
@@ -25,6 +28,9 @@ export default function StepEditor({
   initialOpen?: boolean;
   autoFocusFirst?: boolean;
   dragHandle?: ReactNode;
+  datalistId?: string;
+  shelfNames?: string[];
+  onAddToShelf?: (name: string) => void;
   onUpdateTuple: (product: string, note: string) => void;
   onSetVariant: (next: RoutineStep) => void;
   onRemove: () => void;
@@ -57,6 +63,9 @@ export default function StepEditor({
         <VariantEditor
           value={raw}
           autoFocusFirst={autoFocusFirst}
+          datalistId={datalistId}
+          shelfNames={shelfNames}
+          onAddToShelf={onAddToShelf}
           onChange={(next) => {
             if (isStepTuple(next)) onUpdateTuple(next[0], next[1]);
             else onSetVariant(next);

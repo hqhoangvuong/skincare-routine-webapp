@@ -104,7 +104,7 @@ describe("DayPanel", () => {
 
   it("edit mode: renders StepEditor rows, hides the count badge, shows add-step", async () => {
     const state = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
-    const onEdit = { onAddStep: vi.fn(), onUpdateStep: vi.fn(), onRemoveStep: vi.fn(), onSetVariant: vi.fn(), onReorderStep: vi.fn(), onUpdateDayMeta: vi.fn(), onSetFocusPrefix: vi.fn() };
+    const onEdit = { onAddStep: vi.fn(), onUpdateStep: vi.fn(), onRemoveStep: vi.fn(), onSetVariant: vi.fn(), onReorderStep: vi.fn(), onUpdateDayMeta: vi.fn(), onSetFocusPrefix: vi.fn(), onAddToShelf: vi.fn() };
     render(<DayPanel category="face" state={state} dayIndex={0} onToggleStep={() => {}} now={WEEK1_NOW}
       editing onEdit={onEdit} />);
     expect(screen.queryByRole("checkbox")).toBeNull();
@@ -119,7 +119,7 @@ describe("DayPanel", () => {
     const base = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
     const id = stepId("face", 2, "am", 0);
     const state = updateStepTuple(base, "face", 2, "am", id, "Sản phẩm tuỳ chỉnh", "");
-    const onEdit = { onAddStep: vi.fn(), onUpdateStep: vi.fn(), onRemoveStep: vi.fn(), onSetVariant: vi.fn(), onReorderStep: vi.fn(), onUpdateDayMeta: vi.fn(), onSetFocusPrefix: vi.fn() };
+    const onEdit = { onAddStep: vi.fn(), onUpdateStep: vi.fn(), onRemoveStep: vi.fn(), onSetVariant: vi.fn(), onReorderStep: vi.fn(), onUpdateDayMeta: vi.fn(), onSetFocusPrefix: vi.fn(), onAddToShelf: vi.fn() };
     render(<DayPanel category="face" state={state} dayIndex={2} onToggleStep={() => {}} now={WEEK1_NOW}
       editing onEdit={onEdit} />);
     expect(screen.getByText("đã đổi")).toBeInTheDocument();
@@ -132,7 +132,7 @@ describe("DayPanel", () => {
     const day = withStep.overrides?.face?.days[0];
     if (!day || "steps" in day) throw new Error("face day");
     const newId = day.am[day.am.length - 1].id;
-    const onEdit = { onAddStep: vi.fn(), onUpdateStep: vi.fn(), onRemoveStep: vi.fn(), onSetVariant: vi.fn(), onReorderStep: vi.fn(), onUpdateDayMeta: vi.fn(), onSetFocusPrefix: vi.fn() };
+    const onEdit = { onAddStep: vi.fn(), onUpdateStep: vi.fn(), onRemoveStep: vi.fn(), onSetVariant: vi.fn(), onReorderStep: vi.fn(), onUpdateDayMeta: vi.fn(), onSetFocusPrefix: vi.fn(), onAddToShelf: vi.fn() };
     render(<DayPanel category="face" state={withStep} dayIndex={0} onToggleStep={() => {}} now={WEEK1_NOW}
       editing onEdit={onEdit} justAddedId={newId} />);
     expect(screen.getAllByLabelText("Sản phẩm").length).toBeGreaterThan(0); // a row is expanded
@@ -145,11 +145,11 @@ describe("DayPanel", () => {
     const state = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
     const onEdit = {
       onAddStep: vi.fn(), onUpdateStep: vi.fn(), onRemoveStep: vi.fn(),
-      onSetVariant: vi.fn(), onReorderStep: vi.fn(), onUpdateDayMeta: vi.fn(), onSetFocusPrefix: vi.fn(),
+      onSetVariant: vi.fn(), onReorderStep: vi.fn(), onUpdateDayMeta: vi.fn(), onSetFocusPrefix: vi.fn(), onAddToShelf: vi.fn(),
     };
     render(<DayPanel category="face" state={state} dayIndex={0} onToggleStep={() => {}} now={WEEK1_NOW}
       editing onEdit={onEdit} />);
-    const handles = screen.getAllByRole("button", { name: /Kéo để sắp xếp bước/ });
+    const handles = screen.getAllByRole("button", { name: /sắp xếp bước/ });
     expect(handles.length).toBeGreaterThan(1);
     handles[0].focus();
     await userEvent.keyboard("{ArrowDown}");
@@ -160,7 +160,7 @@ describe("DayPanel", () => {
     const state = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
     const onEdit = {
       onAddStep: vi.fn(), onUpdateStep: vi.fn(), onRemoveStep: vi.fn(), onSetVariant: vi.fn(),
-      onReorderStep: vi.fn(), onUpdateDayMeta: vi.fn(), onSetFocusPrefix: vi.fn(),
+      onReorderStep: vi.fn(), onUpdateDayMeta: vi.fn(), onSetFocusPrefix: vi.fn(), onAddToShelf: vi.fn(),
     };
     render(<DayPanel category="face" state={state} dayIndex={0} onToggleStep={() => {}} now={WEEK1_NOW}
       editing onEdit={onEdit} />);
@@ -191,12 +191,54 @@ describe("DayPanel", () => {
 
   it("edit mode: removing a step calls onRemoveStep with (phase, id)", async () => {
     const state = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
-    const onEdit = { onAddStep: vi.fn(), onUpdateStep: vi.fn(), onRemoveStep: vi.fn(), onSetVariant: vi.fn(), onReorderStep: vi.fn(), onUpdateDayMeta: vi.fn(), onSetFocusPrefix: vi.fn() };
+    const onEdit = { onAddStep: vi.fn(), onUpdateStep: vi.fn(), onRemoveStep: vi.fn(), onSetVariant: vi.fn(), onReorderStep: vi.fn(), onUpdateDayMeta: vi.fn(), onSetFocusPrefix: vi.fn(), onAddToShelf: vi.fn() };
     render(<DayPanel category="face" state={state} dayIndex={0} onToggleStep={() => {}} now={WEEK1_NOW}
       editing onEdit={onEdit} />);
     await userEvent.click(screen.getAllByRole("button", { name: /xoá bước/i })[0]);
     expect(onEdit.onRemoveStep).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("button", { name: "Xoá" }));
     expect(onEdit.onRemoveStep).toHaveBeenCalledWith("am", "face.0.am.0");
+  });
+
+  const editMock = () => ({
+    onAddStep: vi.fn(), onUpdateStep: vi.fn(), onRemoveStep: vi.fn(), onSetVariant: vi.fn(),
+    onReorderStep: vi.fn(), onUpdateDayMeta: vi.fn(), onSetFocusPrefix: vi.fn(), onAddToShelf: vi.fn(),
+  });
+
+  it("renders exactly one shelf datalist for the category with the shelf names as options", () => {
+    const s = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
+    const { container } = render(
+      <DayPanel category="face" state={s} dayIndex={0} onToggleStep={() => {}} now={WEEK1_NOW}
+        editing onEdit={editMock()} />,
+    );
+    const lists = container.querySelectorAll("datalist#shelf-face");
+    expect(lists).toHaveLength(1);
+    const opts = Array.from(lists[0].querySelectorAll("option")).map((o) => o.getAttribute("value"));
+    expect(opts).toEqual(routine.face.products.filter((p) => p !== ""));
+  });
+
+  it("dedupes and trims shelf names in the datalist options", () => {
+    const s0 = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
+    const s: AppState = {
+      ...s0,
+      overrides: {
+        face: { products: ["Toner", "Toner", "  Toner  ", ""], days: getStoredDays(s0, "face") },
+      },
+    };
+    const { container } = render(
+      <DayPanel category="face" state={s} dayIndex={0} onToggleStep={() => {}} now={WEEK1_NOW}
+        editing onEdit={editMock()} />,
+    );
+    const opts = Array.from(container.querySelectorAll("datalist#shelf-face option"))
+      .map((o) => o.getAttribute("value"));
+    expect(opts).toEqual(["Toner"]);
+  });
+
+  it("threads datalistId to the step product inputs", async () => {
+    const s = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
+    render(<DayPanel category="face" state={s} dayIndex={0} onToggleStep={() => {}} now={WEEK1_NOW}
+      editing onEdit={editMock()} />);
+    await userEvent.click(screen.getAllByRole("button", { name: /^Sửa bước:/ })[0]); // open first AM step
+    expect(screen.getAllByLabelText("Sản phẩm")[0]).toHaveAttribute("list", "shelf-face");
   });
 });

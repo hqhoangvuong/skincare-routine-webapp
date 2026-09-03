@@ -22,12 +22,15 @@ function padWeeks(weeks: StepTuple[], length: 2 | 4): StepTuple[] {
 }
 
 function TupleFields({
-  label, value, onChange, autoFocusFirst = false,
+  label, value, onChange, autoFocusFirst = false, datalistId, shelfNames, onAddToShelf,
 }: {
   label: { product: string; note: string };
   value: StepTuple;
   onChange: (t: StepTuple) => void;
   autoFocusFirst?: boolean;
+  datalistId?: string;
+  shelfNames?: string[];
+  onAddToShelf?: (name: string) => void;
 }) {
   const productBuf = useBufferedText(value[0], (p) => onChange([p, value[1]]));
   const noteBuf = useBufferedText(value[1], (n) => onChange([value[0], n]));
@@ -35,6 +38,14 @@ function TupleFields({
   useEffect(() => {
     if (autoFocusFirst) firstRef.current?.focus();
   }, [autoFocusFirst]);
+
+  const typed = productBuf.value.trim();
+  const canAdd =
+    onAddToShelf !== undefined &&
+    shelfNames !== undefined &&
+    typed !== "" &&
+    !shelfNames.includes(typed);
+
   return (
     <div className="variant-branch">
       <label>
@@ -42,6 +53,7 @@ function TupleFields({
         <input
           ref={firstRef}
           type="text"
+          list={datalistId}
           placeholder="Tên sản phẩm / bước"
           value={productBuf.value}
           onChange={productBuf.onChange}
@@ -49,6 +61,16 @@ function TupleFields({
           onBlur={productBuf.onBlur}
         />
       </label>
+      {canAdd && onAddToShelf && (
+        <button
+          type="button"
+          className="add-to-shelf"
+          onClick={() => onAddToShelf(typed)}
+        >
+          <span aria-hidden="true">＋ </span>
+          {`Thêm "${typed}" vào kệ`}
+        </button>
+      )}
       <label>
         {label.note}
         <input
@@ -79,10 +101,16 @@ export default function VariantEditor({
   value,
   onChange,
   autoFocusFirst = false,
+  datalistId,
+  shelfNames,
+  onAddToShelf,
 }: {
   value: RoutineStep;
   onChange: (next: RoutineStep) => void;
   autoFocusFirst?: boolean;
+  datalistId?: string;
+  shelfNames?: string[];
+  onAddToShelf?: (name: string) => void;
 }) {
   const kind = kindOf(value);
   const base = firstTuple(value);
@@ -108,7 +136,8 @@ export default function VariantEditor({
 
       {kind === "plain" && (
         <TupleFields label={{ product: "Sản phẩm", note: "Ghi chú" }} value={base}
-          onChange={(t) => onChange(t)} autoFocusFirst={autoFocusFirst} />
+          onChange={(t) => onChange(t)} autoFocusFirst={autoFocusFirst}
+          datalistId={datalistId} shelfNames={shelfNames} onAddToShelf={onAddToShelf} />
       )}
 
       {kind === "threshold" && !isStepTuple(value) && value.kind === "threshold" && (
@@ -117,11 +146,13 @@ export default function VariantEditor({
           <TupleFields
             label={{ product: `Sản phẩm — tuần 1–${value.untilWeek}`, note: `Ghi chú — tuần 1–${value.untilWeek}` }}
             value={value.before}
-            onChange={(t) => onChange({ ...value, before: t })} />
+            onChange={(t) => onChange({ ...value, before: t })}
+            datalistId={datalistId} shelfNames={shelfNames} onAddToShelf={onAddToShelf} />
           <TupleFields
             label={{ product: `Sản phẩm — từ tuần ${value.untilWeek + 1}`, note: `Ghi chú — từ tuần ${value.untilWeek + 1}` }}
             value={value.from}
-            onChange={(t) => onChange({ ...value, from: t })} />
+            onChange={(t) => onChange({ ...value, from: t })}
+            datalistId={datalistId} shelfNames={shelfNames} onAddToShelf={onAddToShelf} />
         </>
       )}
 
@@ -145,7 +176,8 @@ export default function VariantEditor({
               onChange={(t) => {
                 const weeks = value.weeks.map((w, wi) => (wi === i ? t : w));
                 onChange({ ...value, weeks });
-              }} />
+              }}
+              datalistId={datalistId} shelfNames={shelfNames} onAddToShelf={onAddToShelf} />
           ))}
         </>
       )}

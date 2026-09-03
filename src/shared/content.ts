@@ -183,9 +183,9 @@ function setPhaseArray(day: StoredDay, phase: StepPhase, next: StoredStep[]): St
   return phase === "pm" ? { ...day, pm: next } : { ...day, am: next };
 }
 
-export function addProduct(state: AppState, category: Category): AppState {
+export function addProduct(state: AppState, category: Category, name = ""): AppState {
   const o = ensureOverride(state, category);
-  o.products.push("");
+  o.products.push(name);
   return withOverride(state, category, o);
 }
 
@@ -259,6 +259,26 @@ export function moveStep(
   return withOverride(state, category, o);
 }
 
+export function moveProduct(
+  state: AppState, category: Category, fromIndex: number, toIndex: number,
+): AppState {
+  const current = state.overrides?.[category]?.products ?? routine[category].products;
+  const len = current.length;
+  if (
+    fromIndex === toIndex ||
+    fromIndex < 0 || fromIndex >= len ||
+    toIndex < 0 || toIndex >= len
+  ) {
+    return state;
+  }
+  const o = ensureOverride(state, category);
+  const arr = [...o.products];
+  const [moved] = arr.splice(fromIndex, 1);
+  arr.splice(toIndex, 0, moved);
+  o.products = arr;
+  return withOverride(state, category, o);
+}
+
 export function setStepVariant(
   state: AppState, category: Category, dayIndex: number, phase: StepPhase,
   id: string, variant: RoutineStep,
@@ -324,6 +344,42 @@ export function isFocusPrefixEdited(state: AppState, category: Category): boolea
   const p = state.overrides?.[category]?.focusPrefix;
   if (p === undefined) return false;
   return p !== DEFAULT_FOCUS_PREFIX[category];
+}
+
+export type StepUsage = { dayIndex: number; phase: StepPhase; stepId: string };
+
+/** The product name strings a step names, across every conditional branch. */
+function stepProductNames(step: RoutineStep): string[] {
+  if (isStepTuple(step)) return [step[0]];
+  if (step.kind === "threshold") return [step.before[0], step.from[0]];
+  return step.weeks.map((w) => w[0]);
+}
+
+/**
+ * Every step in `category` whose product name (any branch, trimmed) equals
+ * `name` trimmed. Week-independent — "is this product named in the step",
+ * not "does the step resolve to it this week". Ordered by day, then
+ * am/pm/steps, then array order. Empty/whitespace `name` → [].
+ */
+export function productUsage(
+  state: AppState, category: Category, name: string,
+): StepUsage[] {
+  const target = name.trim();
+  if (target === "") return [];
+  const out: StepUsage[] = [];
+  getStoredDays(state, category).forEach((day, dayIndex) => {
+    const phases: [StepPhase, StoredStep[]][] = "steps" in day
+      ? [["steps", day.steps]]
+      : [["am", day.am], ["pm", day.pm]];
+    for (const [phase, steps] of phases) {
+      for (const s of steps) {
+        if (stepProductNames(s.step).some((n) => n.trim() === target)) {
+          out.push({ dayIndex, phase, stepId: s.id });
+        }
+      }
+    }
+  });
+  return out;
 }
 
 export function resetCategory(state: AppState, category: Category): AppState {

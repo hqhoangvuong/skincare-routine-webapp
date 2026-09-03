@@ -285,6 +285,39 @@ footer{margin-top:40px;text-align:center;font-size:12.5px;color:var(--rose-deep,
   box-shadow:0 4px 12px -2px rgba(120,90,90,.28);
 }
 
+/* C1 scoped overrides — same trap as the .confirm-* block above: the reworked shelf DOM
+   (div.gallery.gallery-edit > ul.gallery-edit-list > li.prod.prod-edit) re-triggers the
+   Wave-1 `.gallery` grid and the `.gallery-edit .prod-edit` flex + `… button` 26px-circle
+   rules. Undo the grid on the container, un-flex the <li> so head + usage stack, and
+   re-state the drag handle / usage chip boxes so they escape the circle — the
+   `.gallery-edit .prod-edit button` selector (0,2,1) out-specificities every single-class
+   rule, so each contested property has to be repeated at this depth (line-228 pattern). */
+.gallery.gallery-edit { display: block; }
+.gallery-edit .prod-edit { display: block; }
+.gallery-edit .prod-edit .drag-handle {
+  width: auto; height: auto; border-radius: 999px;
+  background: none; color: var(--rose-deep); font-size: 16px; cursor: grab;
+}
+.gallery-edit .prod-edit .drag-handle.is-dragging { cursor: grabbing; }
+.gallery-edit .prod-edit .prod-usage button {
+  width: auto; height: auto;
+  font-size: 12px; padding: 2px 8px; border-radius: 999px;
+  border: 1px solid var(--line, #e7d8da); background: #fff; color: #5b4a4d;
+}
+
+.gallery-edit-list { list-style: none; margin: 0; padding: 0; }
+.prod-edit-head { display: flex; align-items: center; gap: 8px; }
+.prod-edit.dragging { opacity: 1; background: #fff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); border-radius: 10px; }
+.prod-edit.drop-target { box-shadow: inset 0 2px 0 var(--rose); }
+/* M1: downward drag — the landing-slot row sits above where the item drops, so draw on its bottom edge */
+.prod-edit.drop-target-below { box-shadow: inset 0 -2px 0 var(--rose); }
+.prod-usage { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 2px 42px; }
+.prod-usage button {
+  font-size: 12px; padding: 2px 8px; border-radius: 999px;
+  border: 1px solid var(--line, #e7d8da); background: #fff; color: #5b4a4d; cursor: pointer;
+}
+.prod-usage-empty { font-size: 12px; color: #a6898d; margin: 4px 0 2px 42px; }
+
 .day-header-edit{
   margin:0 0 14px;padding:12px;border:1px solid var(--line);border-radius:12px;
   background:var(--blush);display:grid;gap:8px;
@@ -292,3 +325,10 @@ footer{margin-top:40px;text-align:center;font-size:12.5px;color:var(--rose-deep,
 .day-header-edit-row{display:flex;align-items:center;gap:8px;font-weight:800;font-size:12px;color:var(--rose-ink);}
 .day-header-edit label{display:grid;gap:3px;font-size:11.5px;font-weight:700;color:var(--rose-ink);}
 .day-header-edit input{border:1px solid var(--line);border-radius:8px;padding:7px 9px;font:inherit;font-size:12px;color:var(--rose-ink);background:#fff;}
+
+.add-to-shelf {
+  display: block; margin: -4px 0 8px; padding: 3px 10px;
+  font-size: 12px; border-radius: 999px; cursor: pointer;
+  border: 1px dashed var(--rose, #d98b98); background: transparent; color: var(--rose, #d98b98);
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}

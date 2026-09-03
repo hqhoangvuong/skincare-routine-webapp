@@ -5,7 +5,7 @@ import DayTabs from "./DayTabs";
 import DayPanel from "./DayPanel";
 import CustomizationsStrip from "./CustomizationsStrip";
 import {
-  addProduct, addStep, getCategoryData, moveStep, removeProduct, removeStep,
+  addProduct, addStep, getCategoryData, moveProduct, moveStep, removeProduct, removeStep,
   renameProduct, resetCategory, setFocusPrefix, setStepVariant, updateDayMeta, updateStepTuple,
 } from "../shared/content";
 import type { AppState, Category } from "../shared/types";
@@ -300,6 +300,11 @@ export default function CategorySection({
   const [justAddedId, setJustAddedId] = useState<string | null>(null);
   const [openStepId, setOpenStepId] = useState<string | null>(null);
 
+  const handleJump = (dayIndex: number, id: string) => {
+    onSelectDay(dayIndex);
+    setOpenStepId(id);
+  };
+
   // consume-once: clear the "just added" highlight on the render after it's applied
   useEffect(() => {
     if (justAddedId !== null) setJustAddedId(null);
@@ -336,21 +341,22 @@ export default function CategorySection({
           state={state}
           category={category}
           onReset={handleReset}
-          onJump={(dayIndex, id) => {
-            onSelectDay(dayIndex);
-            setOpenStepId(id);
-          }}
+          onJump={handleJump}
         />
       )}
 
       <h2 className="section-title">{GALLERY_TITLE[category]}</h2>
       <Gallery
         products={data.products}
+        state={state}
+        category={category}
         editing={editing}
         onEdit={{
           onRename: (i, name) => editContent((s) => renameProduct(s, category, i, name)),
           onRemove: (i) => editContent((s) => removeProduct(s, category, i)),
           onAdd: () => editContent((s) => addProduct(s, category)),
+          onMove: (from, to) => editContent((s) => moveProduct(s, category, from, to)),
+          onJump: handleJump,
         }}
       />
 
@@ -389,6 +395,7 @@ export default function CategorySection({
             editContent((s) => updateDayMeta(s, category, activeDay, patch)),
           onSetFocusPrefix: (prefix) =>
             editContent((s) => setFocusPrefix(s, category, prefix)),
+          onAddToShelf: (name) => editContent((s) => addProduct(s, category, name)),
         }}
       />
 

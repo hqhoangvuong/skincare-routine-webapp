@@ -120,6 +120,21 @@ worker/
   the face-only category-level `focusPrefix` (`CategoryOverride.focusPrefix?:
   string` — an additive optional field; `AppState` is still `version: 3`, no
   migration).
+- **Product shelf (usability Wave 3):** `content.ts#moveProduct(state, category, fromIndex,
+  toIndex)` reorders a shelf entry (same no-op/out-of-range → same-reference contract as
+  `moveStep`); `addProduct` takes an optional `name` (the gallery's blank-row button passes
+  none, the step editor's "add to shelf" passes the trimmed field text).
+  `content.ts#productUsage(state, category, name)` returns `{ dayIndex, phase, stepId }[]` for
+  every step that names `name` (trimmed, any threshold/cycle branch, week-independent) — it
+  drives the per-entry usage list under each `Gallery` row in edit mode, whose chips jump via
+  the same `onSelectDay` + `setOpenStepId` path `CustomizationsStrip` uses. The step product
+  `<input>` (plain and every variant branch) carries `list="shelf-<category>"`; `DayPanel`
+  renders the one `<datalist>` from the de-duped non-empty shelf. `useDragSort` gained a
+  `{ mode: "onDrop" }` option (the shelf reorders on drop, so it needs no per-item ids —
+  index keys are stable because the list never re-sorts under the finger) and an `itemNoun`
+  option; its handle `aria-label` now names the arrow keys (Wave 2 M3) and it no longer
+  dereferences a stale index if the list shrinks mid-drag (Wave 2 M7). `DAY_SHORT` /
+  `PHASE_LABEL` moved to `src/components/dayLabels.ts`.
 - **A step is a `RoutineStep`: a plain `[product, note]` tuple, or a `ConditionalStep`.** Two conditional
   kinds: `threshold` (`{ kind, untilWeek, before, from }` — `before` for program-weeks `1..untilWeek`,
   `from` after) and `cycle` (`{ kind, length: 2|4, weeks }` — indexed by `(week-1) % length`).
@@ -305,9 +320,8 @@ multi-week history view over that log.
 The in-app content editor (sub-project 3) now exists: `AppState.overrides` + `src/shared/content.ts` as
 the read/mutate seam + `RoutineStep` variants in `types.ts`, driven by an inline per-category pencil
 toggle in `CategorySection` (edit mode hides the week strip and checkboxes, shows editable `Gallery` rows
-and `StepEditor`/`VariantEditor` step rows and a "Đặt lại theo mặc định" reset). Still deferred within it:
-reordering products/steps, editing day metadata (`short`/`full`/`focus`/`type`), and linking a gallery
-entry to the steps that name it. Deliberately not built yet: a PWA manifest/service worker, and push
+and `StepEditor`/`VariantEditor` step rows and a "Đặt lại theo mặc định" reset), with product shelf
+management, day metadata editing, and gallery-to-step linkage (Wave 2–3). Deliberately not built yet: a PWA manifest/service worker, and push
 notifications/reminders. Don't add pieces of these speculatively — the seams are already in place for
 them:
 
