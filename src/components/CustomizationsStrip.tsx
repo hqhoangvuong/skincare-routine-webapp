@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { getStoredDays, isDayMetaEdited, isFocusPrefixEdited, isStepEdited } from "../shared/content";
 import type { AppState, Category, StepPhase, StoredStep } from "../shared/types";
-
-const DAY_SHORT = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
-const PHASE_LABEL: Record<StepPhase, string> = { am: "Sáng", pm: "Tối", steps: "Chăm tóc" };
+import { DAY_SHORT, PHASE_LABEL } from "./dayLabels";
 
 type Change = {
   dayIndex: number;
