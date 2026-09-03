@@ -21,6 +21,7 @@ export function useDragSort<T>(
   };
   draggingKey: string | null;
   dropTargetKey: string | null;
+  dropBelow: boolean;
 } {
   const mode = opts?.mode ?? "live";
   const noun = opts?.itemNoun ?? "mục";
@@ -42,17 +43,25 @@ export function useDragSort<T>(
 
   const wouldLandAt = drag ? drag.order.indexOf(drag.fromIndex) : -1;
   const draggingKey = dragValid ? keyOf(items[drag.fromIndex], drag.fromIndex) : null;
-  const dropTargetKey =
-    dragValid && mode === "onDrop" && wouldLandAt >= 0 && wouldLandAt < items.length
-      ? keyOf(items[wouldLandAt], wouldLandAt)
-      : null;
+  // M2: at pointerdown wouldLandAt === fromIndex, which would flag the dragged row as its
+  // own drop target — suppress that so a row never gets both `dragging` and `drop-target`.
+  const dropActive =
+    dragValid && mode === "onDrop" && wouldLandAt >= 0 && wouldLandAt < items.length &&
+    drag !== null && wouldLandAt !== drag.fromIndex;
+  const dropTargetKey = dropActive ? keyOf(items[wouldLandAt], wouldLandAt) : null;
+  // M1: the indicator draws on the drop-target row's top edge; on a downward drag the row
+  // that occupies the landing slot sits *above* where the dragged item lands, so the caller
+  // needs to move the line to that row's bottom edge instead.
+  const dropBelow = dropActive && drag !== null && wouldLandAt > drag.fromIndex;
 
   const endDrag = useCallback(() => {
     const d = dragRef.current;
     setDrag(null);
     if (!d || d.fromIndex >= items.length) return;
     const finalIndex = d.order.indexOf(d.fromIndex);
-    if (finalIndex !== -1 && finalIndex !== d.fromIndex) {
+    // M11: if the list shrank mid-drag but `fromIndex` stayed valid, `finalIndex` can point
+    // past the new end — range-guard here rather than leaning on moveProduct/moveStep to do it.
+    if (finalIndex !== -1 && finalIndex !== d.fromIndex && finalIndex < items.length) {
       onReorder(d.fromIndex, finalIndex);
     }
   }, [onReorder, items.length]);
@@ -115,6 +124,7 @@ export function useDragSort<T>(
         if (typeof handleEl.setPointerCapture === "function") {
           handleEl.setPointerCapture(e.pointerId);
         }
+        // order is snapshotted at pointerdown; items appended mid-drag are not draggable until the gesture ends (unreachable in current UI).
         setDrag({ pointerId: e.pointerId, fromIndex: index, order: items.map((_, i) => i) });
       },
       onKeyDown: (e: KeyboardEvent) => {
@@ -128,5 +138,5 @@ export function useDragSort<T>(
     [items, onReorder, noun],
   );
 
-  return { order, handleProps, draggingKey, dropTargetKey };
+  return { order, handleProps, draggingKey, dropTargetKey, dropBelow };
 }

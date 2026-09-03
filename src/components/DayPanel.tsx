@@ -33,12 +33,16 @@ export type DayEdit = {
 };
 
 function shelfNamesOf(state: AppState, category: Category): string[] {
+  // trim + dedupe on the trimmed form, so this matches `canAdd` in VariantEditor, which
+  // compares the *trimmed* field text against this list (a shelf entry stored as " Toner "
+  // must not still offer `Thêm "Toner" vào kệ`).
   const seen = new Set<string>();
   const out: string[] = [];
   for (const p of getCategoryData(state, category).products) {
-    if (p !== "" && !seen.has(p)) {
-      seen.add(p);
-      out.push(p);
+    const t = p.trim();
+    if (t !== "" && !seen.has(t)) {
+      seen.add(t);
+      out.push(t);
     }
   }
   return out;

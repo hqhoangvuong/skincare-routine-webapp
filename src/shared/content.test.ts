@@ -351,18 +351,24 @@ describe("productUsage", () => {
     // the step still says "Tẩy trang Bioderma", so the OLD shelf name still matches steps
     // — the meaningful assertion is that querying the NEW distinct string finds nothing
     expect(productUsage(s, "face", "Tẩy trang Bioderma Sensibio H2O")).toEqual([]);
+    // and the "no rename propagation" non-goal: the old step text still resolves
+    expect(productUsage(s, "face", "Tẩy trang Bioderma").length).toBeGreaterThan(0);
   });
 
-  it("is ordered by day then phase", () => {
-    const hits = productUsage(base, "face", "Toner Cocoon Sen");
-    const keys = hits.map((h) => `${h.dayIndex}.${h.phase}`);
-    const sorted = [...keys].sort((a, b) => {
-      const [da, pa] = a.split(".");
-      const [db, pb] = b.split(".");
-      if (da !== db) return Number(da) - Number(db);
-      return (pa === "am" ? 0 : 1) - (pb === "am" ? 0 : 1);
+  it("is ordered by day then phase — am before pm on the same day", () => {
+    // synthetic override: the same product on day 0 in both am[0] and pm[0], so the
+    // phase half of the ordering is actually exercised (all real "Toner Cocoon Sen"
+    // hits are pm, which never drives the am/pm comparison).
+    const s = withFaceOverride((o) => {
+      const day0 = o.days[0];
+      if ("steps" in day0) throw new Error("face day");
+      day0.am[0] = { id: "face.0.am.0", step: ["Sản phẩm thử nghiệm", ""] };
+      day0.pm[0] = { id: "face.0.pm.0", step: ["Sản phẩm thử nghiệm", ""] };
     });
-    expect(keys).toEqual(sorted);
+    expect(productUsage(s, "face", "Sản phẩm thử nghiệm")).toEqual([
+      { dayIndex: 0, phase: "am", stepId: "face.0.am.0" },
+      { dayIndex: 0, phase: "pm", stepId: "face.0.pm.0" },
+    ]);
   });
 });
 

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -100,5 +101,53 @@ describe("Gallery", () => {
     handle.focus();
     await userEvent.keyboard("{ArrowDown}");
     expect(onEdit.onMove).toHaveBeenCalledWith(0, 1);
+  });
+
+  it("editable shelf is a ul/li list with the usage block inside each row", () => {
+    const s = makeDefaultState(start);
+    const { container } = render(
+      <Gallery products={["Tẩy trang Bioderma"]} state={s} category="face" editing onEdit={fullEdit()} />,
+    );
+    const list = container.querySelector("ul.gallery-edit-list");
+    expect(list).not.toBeNull();
+    const li = list?.querySelector("li.prod.prod-edit");
+    expect(li?.querySelector(".prod-edit-head")).not.toBeNull();
+    expect(li?.querySelector(".prod-usage")).not.toBeNull(); // usage block is a CHILD of the li
+  });
+
+  it("sustained ArrowDown keeps moving the same product (no oscillation)", async () => {
+    const calls: [number, number][] = [];
+    function Host() {
+      const [items, setItems] = useState(["A", "B", "C"]);
+      return (
+        <Gallery
+          products={items}
+          state={makeDefaultState(start)}
+          category="face"
+          editing
+          onEdit={{
+            ...fullEdit(),
+            onMove: (f, t) => {
+              calls.push([f, t]);
+              setItems((prev) => {
+                const next = [...prev];
+                const [m] = next.splice(f, 1);
+                next.splice(t, 0, m);
+                return next;
+              });
+            },
+          }}
+        />
+      );
+    }
+    render(<Host />);
+    screen
+      .getByRole("button", { name: "Kéo hoặc dùng phím mũi tên lên/xuống để sắp xếp sản phẩm 1" })
+      .focus();
+    await userEvent.keyboard("{ArrowDown}{ArrowDown}");
+    // A moves 0->1 then 1->2, NOT 0->1 then 1->0
+    expect(calls).toEqual([[0, 1], [1, 2]]);
+    expect(screen.getByRole("textbox", { name: "Tên sản phẩm 1" })).toHaveValue("B");
+    expect(screen.getByRole("textbox", { name: "Tên sản phẩm 3" })).toHaveValue("A");
   });
 });

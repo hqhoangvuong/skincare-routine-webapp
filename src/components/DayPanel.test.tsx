@@ -217,6 +217,23 @@ describe("DayPanel", () => {
     expect(opts).toEqual(routine.face.products.filter((p) => p !== ""));
   });
 
+  it("dedupes and trims shelf names in the datalist options", () => {
+    const s0 = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
+    const s: AppState = {
+      ...s0,
+      overrides: {
+        face: { products: ["Toner", "Toner", "  Toner  ", ""], days: getStoredDays(s0, "face") },
+      },
+    };
+    const { container } = render(
+      <DayPanel category="face" state={s} dayIndex={0} onToggleStep={() => {}} now={WEEK1_NOW}
+        editing onEdit={editMock()} />,
+    );
+    const opts = Array.from(container.querySelectorAll("datalist#shelf-face option"))
+      .map((o) => o.getAttribute("value"));
+    expect(opts).toEqual(["Toner"]);
+  });
+
   it("threads datalistId to the step product inputs", async () => {
     const s = makeDefaultState(new Date("2026-08-24T00:00:00Z"));
     render(<DayPanel category="face" state={s} dayIndex={0} onToggleStep={() => {}} now={WEEK1_NOW}

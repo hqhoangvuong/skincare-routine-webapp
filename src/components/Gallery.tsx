@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "../icons/icons";
 import { pickIcon } from "../icons/pickIcon";
 import { useBufferedText } from "../hooks/useBufferedText";
@@ -33,6 +34,7 @@ function UsageRow({
         <button
           type="button"
           key={h.stepId}
+          aria-label={`Tới bước "${product}" — ${DAY_SHORT[h.dayIndex]} ${PHASE_LABEL[h.phase]}`}
           onClick={() => onJump(h.dayIndex, h.stepId)}
         >
           {DAY_SHORT[h.dayIndex]} {PHASE_LABEL[h.phase]}
@@ -45,23 +47,31 @@ function UsageRow({
 type HandleProps = ReturnType<ReturnType<typeof useDragSort<string>>["handleProps"]>;
 
 function ProductRow({
-  product, index, onEdit, dragging, dropTarget, state, category, handleProps,
+  product, index, onEdit, dragging, dropTarget, dropBelow, state, category, handleProps, onHandleRef,
 }: {
   product: string;
   index: number;
   onEdit: GalleryEdit;
   dragging: boolean;
   dropTarget: boolean;
+  dropBelow: boolean;
   state?: AppState;
   category?: Category;
   handleProps: HandleProps;
+  onHandleRef: (el: HTMLButtonElement | null) => void;
 }) {
   const buf = useBufferedText(product, (name) => onEdit.onRename(index, name));
-  const cls = `prod prod-edit${dragging ? " dragging" : ""}${dropTarget ? " drop-target" : ""}`;
+  const dropCls = dropTarget ? (dropBelow ? " drop-target-below" : " drop-target") : "";
+  const cls = `prod prod-edit${dragging ? " dragging" : ""}${dropCls}`;
   return (
     <li className={cls}>
       <div className="prod-edit-head">
-        <button type="button" className={`drag-handle${dragging ? " is-dragging" : ""}`} {...handleProps}>
+        <button
+          type="button"
+          ref={onHandleRef}
+          className={`drag-handle${dragging ? " is-dragging" : ""}`}
+          {...handleProps}
+        >
           ⠿
         </button>
         <Icon icon={pickIcon(product)} size={34} />
@@ -94,10 +104,23 @@ function GalleryEditList({
   state?: AppState;
   category?: Category;
 }) {
-  const { order, handleProps, draggingKey, dropTargetKey } = useDragSort(
+  // I1: the shelf uses index keys (right for the pointer/onDrop path, which never re-sorts
+  // mid-drag), but the arrow-key path re-sorts immediately — with index keys React reuses
+  // the DOM node in place, so focus stays pinned to the *slot*, not the moved row, and the
+  // next ArrowDown moves whatever now sits there. Restore focus to the destination slot's
+  // handle after each move so a sustained ArrowDown keeps moving the same product.
+  const handleRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
+  const [pendingFocus, setPendingFocus] = useState<number | null>(null);
+  useEffect(() => {
+    if (pendingFocus === null) return;
+    handleRefs.current.get(pendingFocus)?.focus();
+    setPendingFocus(null);
+  }, [pendingFocus, products]);
+
+  const { order, handleProps, draggingKey, dropTargetKey, dropBelow } = useDragSort(
     products,
     (_name, i) => String(i),
-    (from, to) => onEdit.onMove(from, to),
+    (from, to) => { onEdit.onMove(from, to); setPendingFocus(to); },
     { mode: "onDrop", itemNoun: "sản phẩm" },
   );
   return (
@@ -114,9 +137,14 @@ function GalleryEditList({
             onEdit={onEdit}
             dragging={draggingKey === String(index)}
             dropTarget={dropTargetKey === String(index)}
+            dropBelow={dropBelow}
             state={state}
             category={category}
             handleProps={handleProps(index)}
+            onHandleRef={(el) => {
+              if (el) handleRefs.current.set(index, el);
+              else handleRefs.current.delete(index);
+            }}
           />
         ))}
       </ul>

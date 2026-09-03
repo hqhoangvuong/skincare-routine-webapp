@@ -238,7 +238,48 @@ describe("CategorySection", () => {
     // the new entry is on the shelf now (face shelf had 10 rows, this is the 11th).
     // the typed name shows both in the still-open step field and the new gallery row,
     // so assert on the gallery row specifically.
-    expect(screen.getAllByDisplayValue("Kem chống nắng SPF 50").length).toBeGreaterThan(0);
     expect(screen.getByRole("textbox", { name: "Tên sản phẩm 11" })).toHaveValue("Kem chống nắng SPF 50");
+  });
+
+  it("a keyboard shelf reorder persists after the host re-renders from committed state (two presses)", async () => {
+    function Host() {
+      const [st, setSt] = useState(makeDefaultState(new Date("2026-08-24T00:00:00Z")));
+      return (
+        <CategorySection category="face" activeDay={0} onSelectDay={() => {}}
+          state={st} onToggleStep={() => {}} editContent={(mut) => setSt(mut)} />
+      );
+    }
+    render(<Host />);
+    await userEvent.click(screen.getByRole("button", { name: /chỉnh sửa nội dung/i }));
+    const originalFirst = routine.face.products[0];
+    expect(screen.getByRole("textbox", { name: "Tên sản phẩm 1" })).toHaveValue(originalFirst);
+    screen
+      .getByRole("button", { name: "Kéo hoặc dùng phím mũi tên lên/xuống để sắp xếp sản phẩm 1" })
+      .focus();
+    await userEvent.keyboard("{ArrowDown}{ArrowDown}");
+    // the row that started at slot 1 moved down twice: slot 1 now holds a different
+    // product, and the original slot-1 product is at slot 3 (would be back at slot 1
+    // if the reorder oscillated — that is exactly I1).
+    expect(screen.getByRole("textbox", { name: "Tên sản phẩm 1" })).not.toHaveValue(originalFirst);
+    expect(screen.getByRole("textbox", { name: "Tên sản phẩm 3" })).toHaveValue(originalFirst);
+  });
+
+  it("clicking a shelf usage chip switches the active day", async () => {
+    const onSelectDay = vi.fn();
+    function Host() {
+      const [st, setSt] = useState(makeDefaultState(new Date("2026-08-24T00:00:00Z")));
+      return (
+        <CategorySection category="face" activeDay={0} onSelectDay={onSelectDay}
+          state={st} onToggleStep={() => {}} editContent={(mut) => setSt(mut)} />
+      );
+    }
+    render(<Host />);
+    await userEvent.click(screen.getByRole("button", { name: /chỉnh sửa nội dung/i }));
+    const chip = screen
+      .getAllByRole("button")
+      .find((b) => /^(T[2-7]|CN) (Sáng|Tối)$/.test(b.textContent ?? ""));
+    if (!chip) throw new Error("no usage chip rendered");
+    await userEvent.click(chip);
+    expect(onSelectDay).toHaveBeenCalled();
   });
 });
