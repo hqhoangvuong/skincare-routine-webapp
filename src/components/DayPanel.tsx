@@ -107,6 +107,7 @@ function PhaseBody({
     resolvedSteps,
     (rs) => rs.id,
     (from, to) => onEdit?.onReorderStep(phase, from, to),
+    { itemNoun: "bước" },
   );
 
   if (editing && onEdit) {

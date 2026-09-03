@@ -158,7 +158,7 @@ describe("CategorySection", () => {
     }
     render(<Host />);
     await userEvent.click(screen.getByRole("button", { name: /chỉnh sửa nội dung/i }));
-    const handlesBefore = screen.getAllByRole("button", { name: /Kéo để sắp xếp bước/ });
+    const handlesBefore = screen.getAllByRole("button", { name: /sắp xếp bước/ });
     // the first AM step label, before the move
     const firstToggleBefore = screen.getAllByRole("button", { name: /^Sửa bước:/ })[0].textContent;
     handlesBefore[0].focus();

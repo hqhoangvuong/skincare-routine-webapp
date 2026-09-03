@@ -19,12 +19,19 @@ if (typeof globalThis.PointerEvent === "undefined") {
 
 type Row = { id: string; label: string };
 
-function List({ items, onReorder }: { items: Row[]; onReorder: (f: number, t: number) => void }) {
-  const { order, handleProps, draggingKey } = useDragSort(items, (r) => r.id, onReorder);
+function List({
+  items, onReorder, opts, keyOf = (r: Row) => r.id,
+}: {
+  items: Row[];
+  onReorder: (f: number, t: number) => void;
+  opts?: { mode?: "live" | "onDrop"; itemNoun?: string };
+  keyOf?: (r: Row, i: number) => string;
+}) {
+  const { order, handleProps, draggingKey, dropTargetKey } = useDragSort(items, keyOf, onReorder, opts);
   return (
     <ul>
       {order.map((r, i) => (
-        <li key={r.id} data-dragging={draggingKey === r.id}>
+        <li key={keyOf(r, i)} data-dragging={draggingKey === keyOf(r, i)} data-drop={dropTargetKey === keyOf(r, i)}>
           <button {...handleProps(i)}>{r.label}</button>
         </li>
       ))}
@@ -39,8 +46,10 @@ const rows: Row[] = [
 ];
 
 // handleProps supplies an aria-label, so each handle button's accessible name is
-// `Kéo để sắp xếp bước ${i + 1}` (this is also how Task 7's DayPanel test finds them).
-const handleName = (visualIndex: number): string => `Kéo để sắp xếp bước ${visualIndex + 1}`;
+// `Kéo hoặc dùng phím mũi tên lên/xuống để sắp xếp mục ${i + 1}` (this is also how
+// Task 7's DayPanel test finds them).
+const handleName = (visualIndex: number): string =>
+  `Kéo hoặc dùng phím mũi tên lên/xuống để sắp xếp mục ${visualIndex + 1}`;
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -75,7 +84,7 @@ describe("useDragSort — keyboard", () => {
 
   it("handle has an aria-label", () => {
     render(<List items={rows} onReorder={vi.fn()} />);
-    expect(screen.getByRole("button", { name: "Kéo để sắp xếp bước 1" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Kéo hoặc dùng phím mũi tên lên/xuống để sắp xếp mục 1" })).toBeInTheDocument();
   });
 });
 
@@ -210,5 +219,52 @@ describe("useDragSort — pointer", () => {
       window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, clientY: 12, pointerId: 1 }));
     });
     expect(onReorder).not.toHaveBeenCalled();
+  });
+});
+
+describe("useDragSort — onDrop mode + guards", () => {
+  function mockRects(): void {
+    screen.getAllByRole("button").forEach((b, i) => {
+      const li = b.closest("li");
+      if (!li) throw new Error("li");
+      vi.spyOn(li, "getBoundingClientRect").mockReturnValue({
+        top: i * 40, bottom: i * 40 + 40, height: 40, left: 0, right: 100, width: 100, x: 0, y: i * 40, toJSON: () => ({}),
+      });
+    });
+  }
+
+  it("onDrop: order does not change during pointermove; one onReorder on pointerup", () => {
+    const onReorder = vi.fn();
+    render(<List items={rows} onReorder={onReorder} opts={{ mode: "onDrop" }} keyOf={(_r, i) => String(i)} />);
+    mockRects();
+    const handle = screen.getAllByRole("button")[0];
+    act(() => { handle.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientY: 10, pointerId: 1 })); });
+    act(() => { window.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, clientY: 150, pointerId: 1 })); });
+    // list still in original visual order mid-drag
+    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Alpha", "Beta", "Gamma"]);
+    act(() => { window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, clientY: 150, pointerId: 1 })); });
+    expect(onReorder).toHaveBeenCalledTimes(1);
+    expect(onReorder).toHaveBeenCalledWith(0, 2);
+  });
+
+  it("M7: the list shrinking mid-drag ends the drag without throwing or reordering", () => {
+    const onReorder = vi.fn();
+    const { rerender } = render(<List items={rows} onReorder={onReorder} opts={{ mode: "onDrop" }} keyOf={(_r, i) => String(i)} />);
+    mockRects();
+    const handle = screen.getAllByRole("button")[2];
+    act(() => { handle.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientY: 90, pointerId: 1 })); });
+    expect(() => {
+      rerender(<List items={[rows[0]]} onReorder={onReorder} opts={{ mode: "onDrop" }} keyOf={(_r, i) => String(i)} />);
+      act(() => { window.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, clientY: 10, pointerId: 1 })); });
+      act(() => { window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, clientY: 10, pointerId: 1 })); });
+    }).not.toThrow();
+    expect(onReorder).not.toHaveBeenCalled();
+  });
+
+  it("M3: the handle label carries the arrow-key hint and the given noun", () => {
+    render(<List items={rows} onReorder={vi.fn()} opts={{ itemNoun: "sản phẩm" }} />);
+    expect(
+      screen.getByRole("button", { name: "Kéo hoặc dùng phím mũi tên lên/xuống để sắp xếp sản phẩm 1" }),
+    ).toBeInTheDocument();
   });
 });

@@ -149,7 +149,7 @@ describe("DayPanel", () => {
     };
     render(<DayPanel category="face" state={state} dayIndex={0} onToggleStep={() => {}} now={WEEK1_NOW}
       editing onEdit={onEdit} />);
-    const handles = screen.getAllByRole("button", { name: /Kéo để sắp xếp bước/ });
+    const handles = screen.getAllByRole("button", { name: /sắp xếp bước/ });
     expect(handles.length).toBeGreaterThan(1);
     handles[0].focus();
     await userEvent.keyboard("{ArrowDown}");
