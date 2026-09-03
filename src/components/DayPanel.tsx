@@ -4,6 +4,7 @@ import { pickIcon } from "../icons/pickIcon";
 import { programWeek, todayIso } from "../shared/date";
 import { isStepDone, phaseCompletion } from "../shared/progress";
 import {
+  getCategoryData,
   getFocusPrefix,
   getStoredDays,
   isDayMetaEdited,
@@ -28,7 +29,20 @@ export type DayEdit = {
   onReorderStep: (phase: StepPhase, fromIndex: number, toIndex: number) => void;
   onUpdateDayMeta: (patch: { full?: string; focus?: string; type?: string }) => void;
   onSetFocusPrefix: (prefix: string) => void;
+  onAddToShelf: (name: string) => void;
 };
+
+function shelfNamesOf(state: AppState, category: Category): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const p of getCategoryData(state, category).products) {
+    if (p !== "" && !seen.has(p)) {
+      seen.add(p);
+      out.push(p);
+    }
+  }
+  return out;
+}
 
 function Steps({
   steps,
@@ -86,6 +100,8 @@ function PhaseBody({
   onToggleStep,
   editing,
   onEdit,
+  datalistId,
+  shelfNames,
   justAddedId = null,
   openStepId = null,
 }: {
@@ -100,6 +116,8 @@ function PhaseBody({
   onToggleStep: ToggleStep;
   editing: boolean;
   onEdit?: DayEdit;
+  datalistId: string;
+  shelfNames: string[];
   justAddedId?: string | null;
   openStepId?: string | null;
 }) {
@@ -128,6 +146,9 @@ function PhaseBody({
                 dragging={draggingKey === rs.id}
                 initialOpen={rs.id === justAddedId || rs.id === openStepId}
                 autoFocusFirst={rs.id === justAddedId}
+                datalistId={datalistId}
+                shelfNames={shelfNames}
+                onAddToShelf={onEdit.onAddToShelf}
                 dragHandle={
                   <button
                     type="button"
@@ -281,6 +302,8 @@ export default function DayPanel({
   const day = resolveDayForState(state, category, dayIndex, week);
   const storedDay = getStoredDays(state, category)[dayIndex];
   const completedSteps = state.completedSteps;
+  const datalistId = `shelf-${category}`;
+  const shelfNames = shelfNamesOf(state, category);
 
   if (day.kind === "hair") {
     const c = editing
@@ -289,6 +312,13 @@ export default function DayPanel({
     const storedSteps = "steps" in storedDay ? storedDay.steps : [];
     return (
       <div className="panel active">
+        {editing && (
+          <datalist id={datalistId}>
+            {shelfNames.map((n) => (
+              <option key={n} value={n} />
+            ))}
+          </datalist>
+        )}
         {editing && onEdit && (
           <DayHeaderEdit
             state={state}
@@ -315,6 +345,8 @@ export default function DayPanel({
             onToggleStep={onToggleStep}
             editing={editing}
             onEdit={onEdit}
+            datalistId={datalistId}
+            shelfNames={shelfNames}
             justAddedId={justAddedId}
             openStepId={openStepId}
           />
@@ -330,6 +362,13 @@ export default function DayPanel({
   const storedPm = "pm" in storedDay ? storedDay.pm : [];
   return (
     <div className="panel active">
+      {editing && (
+        <datalist id={datalistId}>
+          {shelfNames.map((n) => (
+            <option key={n} value={n} />
+          ))}
+        </datalist>
+      )}
       {editing && onEdit && (
         <DayHeaderEdit
           state={state}
@@ -366,6 +405,8 @@ export default function DayPanel({
           onToggleStep={onToggleStep}
           editing={editing}
           onEdit={onEdit}
+          datalistId={datalistId}
+          shelfNames={shelfNames}
           justAddedId={justAddedId}
           openStepId={openStepId}
         />
@@ -390,6 +431,8 @@ export default function DayPanel({
           onToggleStep={onToggleStep}
           editing={editing}
           onEdit={onEdit}
+          datalistId={datalistId}
+          shelfNames={shelfNames}
           justAddedId={justAddedId}
           openStepId={openStepId}
         />

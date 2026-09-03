@@ -396,6 +396,7 @@ export default function CategorySection({
             editContent((s) => updateDayMeta(s, category, activeDay, patch)),
           onSetFocusPrefix: (prefix) =>
             editContent((s) => setFocusPrefix(s, category, prefix)),
+          onAddToShelf: (name) => editContent((s) => addProduct(s, category, name)),
         }}
       />
 

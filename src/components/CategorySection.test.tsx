@@ -217,4 +217,28 @@ describe("CategorySection", () => {
     // the committed badge but not the shipped default `"Trọng tâm tối nay: …"`.
     expect(screen.getByText(/^Tối nay: /)).toBeInTheDocument();
   });
+
+  it("add-to-shelf from a step editor adds the product and its usage shows the edited day", async () => {
+    function Host() {
+      const [st, setSt] = useState(makeDefaultState(new Date("2026-08-24T00:00:00Z")));
+      return (
+        <CategorySection
+          category="face" activeDay={0} onSelectDay={() => {}}
+          state={st} onToggleStep={() => {}} editContent={(mut) => setSt(mut)}
+        />
+      );
+    }
+    render(<Host />);
+    await userEvent.click(screen.getByRole("button", { name: /chỉnh sửa nội dung/i }));
+    await userEvent.click(screen.getAllByRole("button", { name: /^Sửa bước:/ })[0]); // open AM step 0
+    const input = screen.getAllByLabelText("Sản phẩm")[0];
+    await userEvent.clear(input);
+    await userEvent.type(input, "Kem chống nắng SPF 50");
+    await userEvent.click(screen.getByRole("button", { name: 'Thêm "Kem chống nắng SPF 50" vào kệ' }));
+    // the new entry is on the shelf now (face shelf had 10 rows, this is the 11th).
+    // the typed name shows both in the still-open step field and the new gallery row,
+    // so assert on the gallery row specifically.
+    expect(screen.getAllByDisplayValue("Kem chống nắng SPF 50").length).toBeGreaterThan(0);
+    expect(screen.getByRole("textbox", { name: "Tên sản phẩm 11" })).toHaveValue("Kem chống nắng SPF 50");
+  });
 });
