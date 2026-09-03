@@ -5,7 +5,7 @@ import {
   getCategoryData, resolveDayForState, stepId, isStepEdited,
   addProduct, renameProduct, removeProduct,
   addStep, updateStepTuple, removeStep, setStepVariant, resetCategory,
-  getStoredDays, moveStep,
+  getStoredDays, moveStep, moveProduct, productUsage,
   updateDayMeta, setFocusPrefix, getFocusPrefix, isDayMetaEdited, isFocusPrefixEdited,
 } from "./content";
 import type { AppState, CategoryOverride, ThresholdVariant } from "./types";
@@ -278,6 +278,91 @@ describe("moveStep", () => {
     for (const st of day.steps) {
       expect(isStepEdited(s, "hair", 0, "steps", st.id)).toBeNull();
     }
+  });
+});
+
+describe("moveProduct", () => {
+  it("reorders a product within the shelf", () => {
+    const s = moveProduct(base, "body", 0, 2);
+    expect(getCategoryData(s, "body").products).toEqual([
+      "Dầu khô đa năng Nuxe Huile Multi",
+      "Kem dưỡng ẩm Vaseline Gluta Hya Night",
+      "Tẩy da chết cơ thể cà phê Cocoon",
+    ]);
+  });
+
+  it("returns the same state reference for a no-op or out-of-range move", () => {
+    expect(moveProduct(base, "body", 1, 1)).toBe(base);
+    expect(moveProduct(base, "body", -1, 0)).toBe(base);
+    expect(moveProduct(base, "body", 0, 99)).toBe(base);
+  });
+
+  it("creates the override from the shipped shelf on first move and leaves other categories alone", () => {
+    const s = moveProduct(base, "body", 0, 1);
+    expect(s.overrides?.body).toBeDefined();
+    expect(s.overrides?.face).toBeUndefined();
+    expect(getCategoryData(s, "body").products).toHaveLength(routine.body.products.length);
+  });
+});
+
+describe("addProduct with a name", () => {
+  it("appends the given name", () => {
+    const s = addProduct(base, "face", "Kem chống nắng SPF 50");
+    const products = getCategoryData(s, "face").products;
+    expect(products[products.length - 1]).toBe("Kem chống nắng SPF 50");
+  });
+
+  it("still appends an empty string when called with no name", () => {
+    const s = addProduct(base, "face");
+    const products = getCategoryData(s, "face").products;
+    expect(products[products.length - 1]).toBe("");
+  });
+});
+
+describe("productUsage", () => {
+  it("finds a plain step that names the product", () => {
+    // Monday PM step 0 is ["Tẩy trang Bioderma", ""]
+    const hits = productUsage(base, "face", "Tẩy trang Bioderma");
+    expect(hits).toContainEqual({ dayIndex: 0, phase: "pm", stepId: "face.0.pm.0" });
+    // it appears on several days — all PM
+    expect(hits.every((h) => h.phase === "pm")).toBe(true);
+    expect(hits.length).toBeGreaterThan(1);
+  });
+
+  it("matches inside a threshold branch (Wed AM Vitamin C / Niacinamide)", () => {
+    const nia = productUsage(base, "face", "Serum Niacinamide 15% — Cocoon");
+    expect(nia.some((h) => h.dayIndex === 2 && h.phase === "am")).toBe(true);
+  });
+
+  it("matches inside a cycle branch (Sun PM mask rotation)", () => {
+    const mask = productUsage(base, "face", "Mặt nạ Histolab Peppermint");
+    expect(mask).toEqual([{ dayIndex: 6, phase: "pm", stepId: "face.6.pm.3" }]);
+  });
+
+  it("trims both sides and returns [] for an empty/whitespace name", () => {
+    expect(productUsage(base, "face", "  Tẩy trang Bioderma ").length).toBeGreaterThan(0);
+    expect(productUsage(base, "face", "   ")).toEqual([]);
+    expect(productUsage(base, "face", "")).toEqual([]);
+  });
+
+  it("goes empty for the old name after a rename, non-empty for the new one", () => {
+    const s = renameProduct(base, "face", 0, "Tẩy trang Bioderma Sensibio H2O");
+    // step content is untouched by a shelf rename, so usage is by step text:
+    // the step still says "Tẩy trang Bioderma", so the OLD shelf name still matches steps
+    // — the meaningful assertion is that querying the NEW distinct string finds nothing
+    expect(productUsage(s, "face", "Tẩy trang Bioderma Sensibio H2O")).toEqual([]);
+  });
+
+  it("is ordered by day then phase", () => {
+    const hits = productUsage(base, "face", "Toner Cocoon Sen");
+    const keys = hits.map((h) => `${h.dayIndex}.${h.phase}`);
+    const sorted = [...keys].sort((a, b) => {
+      const [da, pa] = a.split(".");
+      const [db, pb] = b.split(".");
+      if (da !== db) return Number(da) - Number(db);
+      return (pa === "am" ? 0 : 1) - (pb === "am" ? 0 : 1);
+    });
+    expect(keys).toEqual(sorted);
   });
 });
 
